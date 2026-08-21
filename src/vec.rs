@@ -1,4 +1,7 @@
 //! Minimal vector and matrix math for a 3D pipeline. No external crate.
+// Explicit index loops read closer to the standard matrix-math notation here,
+// and `add`/`sub` are intentional inherent methods on the vector types.
+#![allow(clippy::needless_range_loop, clippy::should_implement_trait)]
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec3 {
