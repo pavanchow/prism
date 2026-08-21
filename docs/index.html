@@ -235,12 +235,49 @@
   </div>
 </section>
 
+<style>
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .controls .btn {
+    cursor: pointer;
+    background: #ffffff;
+    font: inherit;
+  }
+  .slider-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .slider-label input[type="range"] {
+    accent-color: var(--accent);
+  }
+  #cube {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+</style>
+
 <section>
   <div class="wrap">
     <h2>In the browser</h2>
-    <p class="lead">The same barycentric idea, in a few lines of JavaScript on a canvas.</p>
+    <p class="lead">A real software rasterizer, ported line for line from the Rust source. A framebuffer, a z-buffer, and barycentric fill, no canvas triangle helpers, every pixel placed by hand and pushed with putImageData.</p>
     <div class="canvas-wrap">
-      <canvas id="tri" width="360" height="280"></canvas>
+      <canvas id="cube" width="320" height="240" style="width: 640px; height: 480px;"></canvas>
+    </div>
+    <div class="controls">
+      <button id="toggleRotate" class="btn" type="button">Pause</button>
+      <button id="toggleWire" class="btn" type="button">Wireframe</button>
+      <label class="slider-label">Speed
+        <input id="speed" type="range" min="0" max="200" value="60">
+      </label>
     </div>
   </div>
 </section>
@@ -260,48 +297,293 @@
 
 <script>
 (function () {
-  var canvas = document.getElementById('tri');
-  if (!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
+  "use strict";
 
-  var verts = [
-    { x: w * 0.5, y: h * 0.15, shade: 235 },
-    { x: w * 0.85, y: h * 0.85, shade: 150 },
-    { x: w * 0.15, y: h * 0.85, shade: 90 }
-  ];
+  // --- vec.rs, ported ---
+  function v3(x, y, z) { return { x: x, y: y, z: z }; }
+  function v3add(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }
+  function v3sub(a, b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }
+  function v3scale(a, s) { return v3(a.x * s, a.y * s, a.z * s); }
+  function v3dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+  function v3cross(a, b) {
+    return v3(
+      a.y * b.z - a.z * b.y,
+      a.z * b.x - a.x * b.z,
+      a.x * b.y - a.y * b.x
+    );
+  }
+  function v3length(a) { return Math.sqrt(v3dot(a, a)); }
+  function v3normalize(a) {
+    var len = v3length(a);
+    return len === 0 ? a : v3scale(a, 1 / len);
+  }
 
+  function matIdentity() {
+    var m = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    for (var i = 0; i < 4; i++) m[i][i] = 1;
+    return m;
+  }
+  function matMul(a, b) {
+    var r = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    for (var i = 0; i < 4; i++) {
+      for (var j = 0; j < 4; j++) {
+        var sum = 0;
+        for (var k = 0; k < 4; k++) sum += a[i][k] * b[k][j];
+        r[i][j] = sum;
+      }
+    }
+    return r;
+  }
+  function matMulPoint(m, p) {
+    var v = [p.x, p.y, p.z, 1];
+    var r = [0, 0, 0, 0];
+    for (var i = 0; i < 4; i++) {
+      r[i] = m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2] + m[i][3] * v[3];
+    }
+    return r;
+  }
+  function matRotationY(radians) {
+    var s = Math.sin(radians), c = Math.cos(radians);
+    var m = matIdentity();
+    m[0][0] = c; m[0][2] = s;
+    m[2][0] = -s; m[2][2] = c;
+    return m;
+  }
+  function matRotationX(radians) {
+    var s = Math.sin(radians), c = Math.cos(radians);
+    var m = matIdentity();
+    m[1][1] = c; m[1][2] = -s;
+    m[2][1] = s; m[2][2] = c;
+    return m;
+  }
+  function matLookAt(eye, target, up) {
+    var f = v3normalize(v3sub(target, eye));
+    var s = v3normalize(v3cross(f, up));
+    var u = v3cross(s, f);
+    var m = matIdentity();
+    m[0] = [s.x, s.y, s.z, -v3dot(s, eye)];
+    m[1] = [u.x, u.y, u.z, -v3dot(u, eye)];
+    m[2] = [-f.x, -f.y, -f.z, v3dot(f, eye)];
+    m[3] = [0, 0, 0, 1];
+    return m;
+  }
+  function matPerspective(fovY, aspect, near, far) {
+    var f = 1 / Math.tan(fovY / 2);
+    var m = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    m[0][0] = f / aspect;
+    m[1][1] = f;
+    m[2][2] = (far + near) / (near - far);
+    m[2][3] = (2 * far * near) / (near - far);
+    m[3][2] = -1;
+    return m;
+  }
+
+  // --- framebuffer.rs, ported ---
+  function Framebuffer(width, height) {
+    this.width = width;
+    this.height = height;
+    this.pixels = new Uint8ClampedArray(width * height * 4);
+    this.depth = new Float32Array(width * height);
+  }
+  Framebuffer.prototype.clear = function (color) {
+    var n = this.width * this.height;
+    for (var i = 0; i < n; i++) {
+      var o = i * 4;
+      this.pixels[o] = color[0];
+      this.pixels[o + 1] = color[1];
+      this.pixels[o + 2] = color[2];
+      this.pixels[o + 3] = 255;
+      this.depth[i] = Infinity;
+    }
+  };
+  Framebuffer.prototype.setPixel = function (x, y, color) {
+    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+    var o = (y * this.width + x) * 4;
+    this.pixels[o] = color[0];
+    this.pixels[o + 1] = color[1];
+    this.pixels[o + 2] = color[2];
+    this.pixels[o + 3] = 255;
+  };
+  Framebuffer.prototype.setWithDepth = function (x, y, z, color) {
+    var i = y * this.width + x;
+    if (z < this.depth[i]) {
+      this.depth[i] = z;
+      var o = i * 4;
+      this.pixels[o] = color[0];
+      this.pixels[o + 1] = color[1];
+      this.pixels[o + 2] = color[2];
+      this.pixels[o + 3] = 255;
+      return true;
+    }
+    return false;
+  };
+
+  // --- raster.rs, ported ---
   function edge(a, b, p) {
     return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
   }
+  function fillTriangle(fb, v0, v1, v2, color) {
+    var area = edge(v0, v1, v2);
+    if (area === 0) return;
 
-  var img = ctx.createImageData(w, h);
-  var area = edge(verts[0], verts[1], verts[2]);
+    var minX = Math.max(0, Math.floor(Math.min(v0.x, v1.x, v2.x)));
+    var maxX = Math.min(fb.width - 1, Math.ceil(Math.max(v0.x, v1.x, v2.x)));
+    var minY = Math.max(0, Math.floor(Math.min(v0.y, v1.y, v2.y)));
+    var maxY = Math.min(fb.height - 1, Math.ceil(Math.max(v0.y, v1.y, v2.y)));
+    if (maxX < 0 || maxY < 0) return;
 
-  for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      var p = { x: x + 0.5, y: y + 0.5 };
-      var w0 = edge(verts[1], verts[2], p);
-      var w1 = edge(verts[2], verts[0], p);
-      var w2 = edge(verts[0], verts[1], p);
-      var inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
-      var i = (y * w + x) * 4;
-      if (inside && area !== 0) {
+    for (var y = minY; y <= maxY; y++) {
+      for (var x = minX; x <= maxX; x++) {
+        var p = { x: x + 0.5, y: y + 0.5 };
+        var w0 = edge(v1, v2, p);
+        var w1 = edge(v2, v0, p);
+        var w2 = edge(v0, v1, p);
+        var inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
+        if (!inside) continue;
+
         var l0 = w0 / area, l1 = w1 / area, l2 = w2 / area;
-        var shade = l0 * verts[0].shade + l1 * verts[1].shade + l2 * verts[2].shade;
-        img.data[i] = shade * 0.6;
-        img.data[i + 1] = shade * 0.75;
-        img.data[i + 2] = shade;
-        img.data[i + 3] = 255;
-      } else {
-        img.data[i] = 20;
-        img.data[i + 1] = 20;
-        img.data[i + 2] = 30;
-        img.data[i + 3] = 255;
+        var z = l0 * v0.z + l1 * v1.z + l2 * v2.z;
+        fb.setWithDepth(x, y, z, color);
       }
     }
   }
-  ctx.putImageData(img, 0, 0);
+  function drawLine(fb, a, b, color) {
+    var x0 = Math.round(a.x), y0 = Math.round(a.y);
+    var x1 = Math.round(b.x), y1 = Math.round(b.y);
+    var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+    var dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+    var err = dx + dy;
+    for (;;) {
+      fb.setPixel(x0, y0, color);
+      if (x0 === x1 && y0 === y1) break;
+      var e2 = 2 * err;
+      if (e2 >= dy) { err += dy; x0 += sx; }
+      if (e2 <= dx) { err += dx; y0 += sy; }
+    }
+  }
+
+  // --- scene.rs, ported ---
+  function cubeTriangles() {
+    var p = [
+      v3(-1, -1, -1), v3(1, -1, -1), v3(1, 1, -1), v3(-1, 1, -1),
+      v3(-1, -1, 1), v3(1, -1, 1), v3(1, 1, 1), v3(-1, 1, 1)
+    ];
+    var faces = [
+      [0, 1, 2, 3], // back
+      [5, 4, 7, 6], // front
+      [4, 0, 3, 7], // left
+      [1, 5, 6, 2], // right
+      [3, 2, 6, 7], // top
+      [4, 5, 1, 0]  // bottom
+    ];
+    var tris = [];
+    for (var i = 0; i < faces.length; i++) {
+      var f = faces[i];
+      tris.push({ a: p[f[0]], b: p[f[1]], c: p[f[2]] });
+      tris.push({ a: p[f[0]], b: p[f[2]], c: p[f[3]] });
+    }
+    return tris;
+  }
+  function toScreen(clip, width, height) {
+    var ndcX = clip[0] / clip[3];
+    var ndcY = clip[1] / clip[3];
+    var ndcZ = clip[2] / clip[3];
+    return {
+      x: (ndcX * 0.5 + 0.5) * width,
+      y: (1 - (ndcY * 0.5 + 0.5)) * height,
+      z: ndcZ
+    };
+  }
+  function point3(p) { return v3(p[0], p[1], p[2]); }
+  function modelNormal(model, a, b, c) {
+    var ta = point3(matMulPoint(model, a));
+    var tb = point3(matMulPoint(model, b));
+    var tc = point3(matMulPoint(model, c));
+    return v3normalize(v3cross(v3sub(tb, ta), v3sub(tc, ta)));
+  }
+
+  var wireColor = [255, 154, 60];
+
+  function renderFrame(fb, width, height, angleY, cameraZ, wireframe) {
+    fb.clear([20, 20, 30]);
+
+    var model = matMul(matRotationY(angleY), matRotationX(0.35));
+    var view = matLookAt(v3(0, 0, cameraZ), v3(0, 0, 0), v3(0, 1, 0));
+    var proj = matPerspective(Math.PI / 4, width / height, 0.1, 100);
+    var mvp = matMul(matMul(proj, view), model);
+    var lightDir = v3normalize(v3(0.4, 0.6, 1.0));
+
+    var tris = cubeTriangles();
+    for (var i = 0; i < tris.length; i++) {
+      var tri = tris[i];
+      var normal = modelNormal(model, tri.a, tri.b, tri.c);
+      var intensity = Math.max(v3dot(normal, lightDir), 0.05);
+      var base = 220;
+      var shade = Math.round(base * intensity);
+      var color = [shade, shade, Math.round(shade * 0.9)];
+
+      var sa = toScreen(matMulPoint(mvp, tri.a), width, height);
+      var sb = toScreen(matMulPoint(mvp, tri.b), width, height);
+      var sc = toScreen(matMulPoint(mvp, tri.c), width, height);
+
+      if (wireframe) {
+        drawLine(fb, sa, sb, wireColor);
+        drawLine(fb, sb, sc, wireColor);
+        drawLine(fb, sc, sa, wireColor);
+      } else {
+        fillTriangle(fb, sa, sb, sc, color);
+      }
+    }
+  }
+
+  // --- driver ---
+  var canvas = document.getElementById('cube');
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var width = canvas.width, height = canvas.height;
+  var fb = new Framebuffer(width, height);
+
+  var angle = 0.6;
+  var rotating = true;
+  var wireframe = false;
+  var speed = 60;
+  var cameraZ = 5;
+  var last = null;
+
+  var rotateBtn = document.getElementById('toggleRotate');
+  var wireBtn = document.getElementById('toggleWire');
+  var speedInput = document.getElementById('speed');
+
+  if (rotateBtn) {
+    rotateBtn.addEventListener('click', function () {
+      rotating = !rotating;
+      rotateBtn.textContent = rotating ? 'Pause' : 'Rotate';
+    });
+  }
+  if (wireBtn) {
+    wireBtn.addEventListener('click', function () {
+      wireframe = !wireframe;
+      wireBtn.textContent = wireframe ? 'Shaded' : 'Wireframe';
+    });
+  }
+  if (speedInput) {
+    speed = parseFloat(speedInput.value) || 0;
+    speedInput.addEventListener('input', function () {
+      speed = parseFloat(speedInput.value) || 0;
+    });
+  }
+
+  function frame(t) {
+    if (last === null) last = t;
+    var dt = (t - last) / 1000;
+    last = t;
+    if (rotating) angle += dt * (speed / 60);
+
+    renderFrame(fb, width, height, angle, cameraZ, wireframe);
+    ctx.putImageData(new ImageData(fb.pixels, width, height), 0, 0);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 
