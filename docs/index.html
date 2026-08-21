@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prism — a software rasterizer in Rust</title>
+<title>Prism: a software rasterizer in Rust</title>
 <meta name="description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
 <meta name="author" content="Pavan Nallamothu">
 <link rel="canonical" href="https://pavanchow.github.io/prism/">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="Prism — a software rasterizer in Rust">
+<meta property="og:title" content="Prism: a software rasterizer in Rust">
 <meta property="og:description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
 <meta property="og:url" content="https://pavanchow.github.io/prism/">
 <meta property="og:site_name" content="Prism">
@@ -22,570 +22,213 @@
   "description": "Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Cross-platform",
-  "author": {
-    "@type": "Person",
-    "name": "Pavan Nallamothu"
-  },
+  "author": { "@type": "Person", "name": "Pavan Nallamothu" },
   "url": "https://pavanchow.github.io/prism/",
   "programmingLanguage": "Rust"
 }
 </script>
 
 <style>
-  :root {
-    --accent: #ff5a1f;
-    --ink: #111111;
-    --muted: #6b6b6b;
-    --line: #eaeaea;
+  :root{
+    --accent:#5b5bd6;--accent-soft:#eeeefb;
+    --ink:#15161c;--muted:#6a6d78;--faint:#9a9dab;
+    --line:#ececed;--panel:#f7f7f9;--panel2:#fbfbfd;
+    --mono:ui-monospace,SFMono-Regular,Menlo,"SF Mono",monospace;
   }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: #ffffff;
-    color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap {
-    max-width: 980px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-  header.hero {
-    padding: 120px 0 80px;
-    text-align: center;
-    border-bottom: 1px solid var(--line);
-  }
-  .kicker {
-    color: var(--accent);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-size: 13px;
-    margin-bottom: 18px;
-  }
-  h1 {
-    font-size: 56px;
-    line-height: 1.08;
-    margin: 0 0 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
-  .sub {
-    font-size: 20px;
-    line-height: 1.5;
-    color: var(--muted);
-    max-width: 640px;
-    margin: 0 auto 36px;
-  }
-  .btn-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
-  .btn {
-    display: inline-block;
-    padding: 13px 26px;
-    border-radius: 999px;
-    font-size: 15px;
-    font-weight: 600;
-    text-decoration: none;
-    border: 1px solid var(--ink);
-    color: var(--ink);
-  }
-  .btn.primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #ffffff;
-  }
-  section { padding: 80px 0; border-bottom: 1px solid var(--line); }
-  section:last-of-type { border-bottom: none; }
-  h2 {
-    font-size: 34px;
-    letter-spacing: -0.01em;
-    margin: 0 0 12px;
-    text-align: center;
-  }
-  .lead {
-    text-align: center;
-    color: var(--muted);
-    font-size: 17px;
-    max-width: 640px;
-    margin: 0 auto 56px;
-  }
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-  }
-  .card {
-    border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 28px;
-  }
-  .card h3 {
-    font-size: 18px;
-    margin: 0 0 10px;
-  }
-  .card p {
-    color: var(--muted);
-    font-size: 15px;
-    line-height: 1.6;
-    margin: 0;
-  }
-  .num {
-    display: inline-flex;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    margin-bottom: 14px;
-  }
-  pre {
-    background: #fafafa;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 20px 24px;
-    font-size: 14px;
-    overflow-x: auto;
-    max-width: 640px;
-    margin: 0 auto;
-  }
-  .canvas-wrap {
-    display: flex;
-    justify-content: center;
-  }
-  canvas {
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: #14141e;
-  }
-  footer {
-    padding: 48px 0 80px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-  }
-  @media (max-width: 720px) {
-    h1 { font-size: 38px; }
-    .cards { grid-template-columns: 1fr; }
-  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:#fff;color:var(--ink);
+    font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+  a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+
+  nav{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--line)}
+  nav .row{display:flex;justify-content:space-between;align-items:center;height:56px;max-width:1040px;margin:0 auto;padding:0 28px}
+  nav .brand{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:650;letter-spacing:-.01em}
+  nav .brand .gem{width:16px;height:16px;transform:rotate(45deg);border-radius:3px;background:linear-gradient(135deg,#9a9af4,#5b5bd6)}
+  nav .links{display:flex;gap:26px;align-items:center}
+  nav .links a{color:var(--ink);font-size:14.5px}
+  @media(max-width:640px){nav .links a:not(.gh){display:none}}
+
+  .hero{padding:70px 0 30px;text-align:center}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
+  h1{font-size:clamp(40px,7vw,72px);line-height:1.03;letter-spacing:-.035em;font-weight:680;margin:18px 0 0}
+  .hero p.sub{max-width:620px;margin:24px auto 0;font-size:clamp(17px,2.1vw,21px);color:var(--muted)}
+
+  .stage{max-width:900px;margin:44px auto 0;padding:0 28px}
+  .card{position:relative;background:linear-gradient(180deg,#fbfbff,#f4f4fb);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:0 1px 0 #fff inset,0 18px 50px -30px rgba(40,40,90,.35)}
+  .card canvas{display:block;width:100%;height:auto;image-rendering:auto;background:transparent;cursor:grab}
+  .card canvas:active{cursor:grabbing}
+  .caption{position:absolute;left:20px;bottom:18px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .controls{position:absolute;right:16px;bottom:14px;display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.86);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:14px;padding:8px 12px}
+  .controls button{cursor:pointer;font:600 13px var(--mono);padding:6px 13px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .controls button:hover{border-color:var(--accent);color:var(--accent)}
+  .controls .sl{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .controls input[type=range]{accent-color:var(--accent);width:78px}
+  @media(max-width:640px){.caption{display:none}.controls{left:14px;right:14px;justify-content:center}}
+
+  section{padding:92px 0;border-top:1px solid var(--line)}
+  h2{font-size:clamp(27px,4.2vw,42px);line-height:1.12;letter-spacing:-.025em;font-weight:660;text-align:center;max-width:760px;margin:0 auto}
+  .lead{max-width:620px;margin:22px auto 0;text-align:center;color:var(--muted);font-size:18px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;margin:48px auto 0}
+  @media(max-width:720px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .step .n{display:inline-flex;width:28px;height:28px;border-radius:8px;background:var(--accent-soft);color:var(--accent);align-items:center;justify-content:center;font:700 13px var(--mono);margin-bottom:12px}
+  .step h3{font-size:17px;margin-bottom:6px}.step p{color:var(--muted);font-size:15px}
+  pre{background:#15161c;color:#ececf4;border-radius:14px;padding:20px 22px;font-family:var(--mono);font-size:13.5px;overflow-x:auto;max-width:640px;margin:40px auto 0}
+  pre .c{color:#8a8d9a}
+  footer{padding:64px 0;border-top:1px solid var(--line);text-align:center;color:var(--muted)}
+  footer .name{color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
+  <nav><div class="row">
+    <div class="brand"><span class="gem"></span>Prism</div>
+    <div class="links">
+      <a href="#demo">Demo</a><a href="#how">How it works</a><a href="#source">Source</a>
+      <a class="gh" href="https://github.com/pavanchow/prism">GitHub</a>
+    </div>
+  </div></nav>
 
-<header class="hero">
-  <div class="wrap">
-    <div class="kicker">Rust · No GPU · No graphics crates</div>
-    <h1>Prism</h1>
-    <p class="sub">A software rasterizer in Rust. It draws real 3D triangles on the CPU, readable end to end, with a framebuffer, a z-buffer, and barycentric math doing all the work.</p>
-    <div class="btn-row">
-      <a class="btn primary" href="https://github.com/pavanchow/prism">View on GitHub</a>
-      <a class="btn" href="#how">How it works</a>
+  <div id="demo" class="hero">
+    <p class="eyebrow">Rust · no GPU · no graphics crates</p>
+    <h1>Triangles into pixels,<br>every one placed by hand.</h1>
+    <p class="sub">Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU. A framebuffer, a z-buffer, and barycentric math do all the work. Here is the real thing, running in your browser.</p>
+  </div>
+
+  <div class="stage">
+    <div class="card">
+      <canvas id="cube" width="880" height="520"></canvas>
+      <div class="caption">drag to orbit · rasterized on the CPU, per pixel</div>
+      <div class="controls">
+        <button id="toggleRotate" type="button">Pause</button>
+        <button id="toggleWire" type="button">Wireframe</button>
+        <span class="sl">Speed <input id="speed" type="range" min="0" max="200" value="60"></span>
+      </div>
     </div>
   </div>
-</header>
 
-<section id="how">
-  <div class="wrap">
+  <section id="how">
     <h2>How it works</h2>
-    <p class="lead">Four steps turn a list of triangles into pixels on screen, no dependencies beyond a CLI parser.</p>
-    <div class="cards">
-      <div class="card">
-        <div class="num">1</div>
-        <h3>Transform</h3>
-        <p>Vertices move through model, view, and projection matrices, written by hand, down to perspective divide.</p>
-      </div>
-      <div class="card">
-        <div class="num">2</div>
-        <h3>Rasterize</h3>
-        <p>Each triangle's bounding box is scanned, and barycentric coordinates decide which pixels fall inside it.</p>
-      </div>
-      <div class="card">
-        <div class="num">3</div>
-        <h3>Depth test</h3>
-        <p>A z-buffer keeps the nearest surface at every pixel, so triangles behind others are correctly hidden.</p>
-      </div>
-      <div class="card">
-        <div class="num">4</div>
-        <h3>Shade</h3>
-        <p>A directional light and a face normal set flat per-triangle brightness with one dot product.</p>
-      </div>
-      <div class="card">
-        <div class="num">5</div>
-        <h3>Output</h3>
-        <p>The finished framebuffer is written as binary PPM, a format simple enough to need no image crate.</p>
-      </div>
-      <div class="card">
-        <div class="num">6</div>
-        <h3>Command line</h3>
-        <p>One command renders the built-in demo scene to a file, with the output size configurable.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <h2>Try it</h2>
-    <p class="lead">Render the demo scene to a PPM image with a single command.</p>
-    <pre>cargo run -- render -o out.ppm --width 800 --height 600</pre>
-  </div>
-</section>
-
-<style>
-  .controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 18px;
-    flex-wrap: wrap;
-    margin-top: 24px;
-  }
-  .controls .btn {
-    cursor: pointer;
-    background: #ffffff;
-    font: inherit;
-  }
-  .slider-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 14px;
-    color: var(--muted);
-  }
-  .slider-label input[type="range"] {
-    accent-color: var(--accent);
-  }
-  #cube {
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
-</style>
-
-<section>
-  <div class="wrap">
-    <h2>In the browser</h2>
-    <p class="lead">A real software rasterizer, ported line for line from the Rust source. A framebuffer, a z-buffer, and barycentric fill, no canvas triangle helpers, every pixel placed by hand and pushed with putImageData.</p>
-    <div class="canvas-wrap">
-      <canvas id="cube" width="320" height="240" style="width: 640px; height: 480px;"></canvas>
-    </div>
-    <div class="controls">
-      <button id="toggleRotate" class="btn" type="button">Pause</button>
-      <button id="toggleWire" class="btn" type="button">Wireframe</button>
-      <label class="slider-label">Speed
-        <input id="speed" type="range" min="0" max="200" value="60">
-      </label>
-    </div>
-  </div>
-</section>
-
-<noscript>
-  <section>
-    <div class="wrap">
-      <h2>Prism: a software rasterizer in Rust</h2>
-      <p class="lead">Prism draws real 3D triangles on the CPU with no GPU and no graphics crates. It transforms vertices through a model, view, and projection pipeline, fills triangles with barycentric coordinates, resolves overlap with a z-buffer, shades with a simple directional light, and writes plain binary PPM images. See the README on GitHub for full usage and design notes.</p>
+    <p class="lead">Six steps turn a list of triangles into pixels, with no dependency beyond a CLI parser.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Transform</h3><p>Vertices move through model, view, and projection matrices written by hand, down to the perspective divide.</p></div>
+      <div class="step"><div class="n">2</div><h3>Rasterize</h3><p>Each triangle's bounding box is scanned, and barycentric coordinates decide which pixels fall inside.</p></div>
+      <div class="step"><div class="n">3</div><h3>Depth test</h3><p>A z-buffer keeps the nearest surface at every pixel, so triangles behind others are hidden correctly.</p></div>
+      <div class="step"><div class="n">4</div><h3>Shade</h3><p>A directional light and a face normal set flat per-triangle brightness with a single dot product.</p></div>
+      <div class="step"><div class="n">5</div><h3>Output</h3><p>The finished framebuffer is written as binary PPM, a format simple enough to need no image crate.</p></div>
+      <div class="step"><div class="n">6</div><h3>Command line</h3><p>One command renders the built-in demo scene to a file, with the output size configurable.</p></div>
     </div>
   </section>
-</noscript>
 
-<footer>
-  By Pavan Nallamothu.
-</footer>
+  <section id="source">
+    <h2>Render from the command line.</h2>
+    <p class="lead">The same pipeline you just dragged, writing a PPM image to disk.</p>
+    <pre><span class="c"># render the demo scene at 800x600</span>
+cargo run -- render -o out.ppm --width 800 --height 600</pre>
+  </section>
+
+  <noscript>
+    <div class="wrap" style="padding:40px 28px;color:#6a6d78">
+      Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates. It transforms vertices through a model, view, and projection pipeline, fills triangles with barycentric coordinates, resolves overlap with a z-buffer, shades with a simple directional light, and writes plain binary PPM images. Source at github.com/pavanchow/prism. By Pavan Nallamothu.
+    </div>
+  </noscript>
+
+  <footer>
+    <p>A software rasterizer you can read end to end.</p>
+    <p style="margin-top:12px"><a href="https://github.com/pavanchow/prism">github.com/pavanchow/prism</a></p>
+    <p style="margin-top:12px">By <span class="name">Pavan Nallamothu</span>.</p>
+  </footer>
 
 <script>
 (function () {
   "use strict";
+  // vec.rs, ported
+  function v3(x,y,z){return{x:x,y:y,z:z};}
+  function v3sub(a,b){return v3(a.x-b.x,a.y-b.y,a.z-b.z);}
+  function v3scale(a,s){return v3(a.x*s,a.y*s,a.z*s);}
+  function v3dot(a,b){return a.x*b.x+a.y*b.y+a.z*b.z;}
+  function v3cross(a,b){return v3(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);}
+  function v3len(a){return Math.sqrt(v3dot(a,a));}
+  function v3norm(a){var l=v3len(a);return l===0?a:v3scale(a,1/l);}
+  function ident(){var m=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];for(var i=0;i<4;i++)m[i][i]=1;return m;}
+  function mul(a,b){var r=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];for(var i=0;i<4;i++)for(var j=0;j<4;j++){var s=0;for(var k=0;k<4;k++)s+=a[i][k]*b[k][j];r[i][j]=s;}return r;}
+  function mulP(m,p){var v=[p.x,p.y,p.z,1],r=[0,0,0,0];for(var i=0;i<4;i++)r[i]=m[i][0]*v[0]+m[i][1]*v[1]+m[i][2]*v[2]+m[i][3]*v[3];return r;}
+  function rotY(a){var s=Math.sin(a),c=Math.cos(a),m=ident();m[0][0]=c;m[0][2]=s;m[2][0]=-s;m[2][2]=c;return m;}
+  function rotX(a){var s=Math.sin(a),c=Math.cos(a),m=ident();m[1][1]=c;m[1][2]=-s;m[2][1]=s;m[2][2]=c;return m;}
+  function lookAt(eye,t,up){var f=v3norm(v3sub(t,eye)),s=v3norm(v3cross(f,up)),u=v3cross(s,f),m=ident();
+    m[0]=[s.x,s.y,s.z,-v3dot(s,eye)];m[1]=[u.x,u.y,u.z,-v3dot(u,eye)];m[2]=[-f.x,-f.y,-f.z,v3dot(f,eye)];m[3]=[0,0,0,1];return m;}
+  function persp(fovY,asp,near,far){var f=1/Math.tan(fovY/2),m=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];
+    m[0][0]=f/asp;m[1][1]=f;m[2][2]=(far+near)/(near-far);m[2][3]=(2*far*near)/(near-far);m[3][2]=-1;return m;}
 
-  // --- vec.rs, ported ---
-  function v3(x, y, z) { return { x: x, y: y, z: z }; }
-  function v3add(a, b) { return v3(a.x + b.x, a.y + b.y, a.z + b.z); }
-  function v3sub(a, b) { return v3(a.x - b.x, a.y - b.y, a.z - b.z); }
-  function v3scale(a, s) { return v3(a.x * s, a.y * s, a.z * s); }
-  function v3dot(a, b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-  function v3cross(a, b) {
-    return v3(
-      a.y * b.z - a.z * b.y,
-      a.z * b.x - a.x * b.z,
-      a.x * b.y - a.y * b.x
-    );
-  }
-  function v3length(a) { return Math.sqrt(v3dot(a, a)); }
-  function v3normalize(a) {
-    var len = v3length(a);
-    return len === 0 ? a : v3scale(a, 1 / len);
-  }
+  // framebuffer.rs, ported
+  function FB(w,h){this.w=w;this.h=h;this.px=new Uint8ClampedArray(w*h*4);this.z=new Float32Array(w*h);}
+  FB.prototype.clear=function(c){var n=this.w*this.h;for(var i=0;i<n;i++){var o=i*4;this.px[o]=c[0];this.px[o+1]=c[1];this.px[o+2]=c[2];this.px[o+3]=c[3]===undefined?255:c[3];this.z[i]=Infinity;}};
+  FB.prototype.setPixel=function(x,y,c){if(x<0||y<0||x>=this.w||y>=this.h)return;var o=(y*this.w+x)*4;this.px[o]=c[0];this.px[o+1]=c[1];this.px[o+2]=c[2];this.px[o+3]=255;};
+  FB.prototype.setD=function(x,y,z,c){var i=y*this.w+x;if(z<this.z[i]){this.z[i]=z;var o=i*4;this.px[o]=c[0];this.px[o+1]=c[1];this.px[o+2]=c[2];this.px[o+3]=255;}};
 
-  function matIdentity() {
-    var m = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-    for (var i = 0; i < 4; i++) m[i][i] = 1;
-    return m;
-  }
-  function matMul(a, b) {
-    var r = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-    for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 4; j++) {
-        var sum = 0;
-        for (var k = 0; k < 4; k++) sum += a[i][k] * b[k][j];
-        r[i][j] = sum;
-      }
-    }
-    return r;
-  }
-  function matMulPoint(m, p) {
-    var v = [p.x, p.y, p.z, 1];
-    var r = [0, 0, 0, 0];
-    for (var i = 0; i < 4; i++) {
-      r[i] = m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2] + m[i][3] * v[3];
-    }
-    return r;
-  }
-  function matRotationY(radians) {
-    var s = Math.sin(radians), c = Math.cos(radians);
-    var m = matIdentity();
-    m[0][0] = c; m[0][2] = s;
-    m[2][0] = -s; m[2][2] = c;
-    return m;
-  }
-  function matRotationX(radians) {
-    var s = Math.sin(radians), c = Math.cos(radians);
-    var m = matIdentity();
-    m[1][1] = c; m[1][2] = -s;
-    m[2][1] = s; m[2][2] = c;
-    return m;
-  }
-  function matLookAt(eye, target, up) {
-    var f = v3normalize(v3sub(target, eye));
-    var s = v3normalize(v3cross(f, up));
-    var u = v3cross(s, f);
-    var m = matIdentity();
-    m[0] = [s.x, s.y, s.z, -v3dot(s, eye)];
-    m[1] = [u.x, u.y, u.z, -v3dot(u, eye)];
-    m[2] = [-f.x, -f.y, -f.z, v3dot(f, eye)];
-    m[3] = [0, 0, 0, 1];
-    return m;
-  }
-  function matPerspective(fovY, aspect, near, far) {
-    var f = 1 / Math.tan(fovY / 2);
-    var m = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-    m[0][0] = f / aspect;
-    m[1][1] = f;
-    m[2][2] = (far + near) / (near - far);
-    m[2][3] = (2 * far * near) / (near - far);
-    m[3][2] = -1;
-    return m;
-  }
+  // raster.rs, ported
+  function edge(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
+  function fill(fb,v0,v1,v2,c){var area=edge(v0,v1,v2);if(area===0)return;
+    var minX=Math.max(0,Math.floor(Math.min(v0.x,v1.x,v2.x))),maxX=Math.min(fb.w-1,Math.ceil(Math.max(v0.x,v1.x,v2.x)));
+    var minY=Math.max(0,Math.floor(Math.min(v0.y,v1.y,v2.y))),maxY=Math.min(fb.h-1,Math.ceil(Math.max(v0.y,v1.y,v2.y)));
+    for(var y=minY;y<=maxY;y++)for(var x=minX;x<=maxX;x++){var p={x:x+0.5,y:y+0.5};
+      var w0=edge(v1,v2,p),w1=edge(v2,v0,p),w2=edge(v0,v1,p);
+      var inside=(w0>=0&&w1>=0&&w2>=0)||(w0<=0&&w1<=0&&w2<=0);if(!inside)continue;
+      var l0=w0/area,l1=w1/area,l2=w2/area,z=l0*v0.z+l1*v1.z+l2*v2.z;fb.setD(x,y,z,c);}}
+  function line(fb,a,b,c){var x0=Math.round(a.x),y0=Math.round(a.y),x1=Math.round(b.x),y1=Math.round(b.y);
+    var dx=Math.abs(x1-x0),sx=x0<x1?1:-1,dy=-Math.abs(y1-y0),sy=y0<y1?1:-1,err=dx+dy;
+    for(;;){fb.setPixel(x0,y0,c);if(x0===x1&&y0===y1)break;var e2=2*err;if(e2>=dy){err+=dy;x0+=sx;}if(e2<=dx){err+=dx;y0+=sy;}}}
 
-  // --- framebuffer.rs, ported ---
-  function Framebuffer(width, height) {
-    this.width = width;
-    this.height = height;
-    this.pixels = new Uint8ClampedArray(width * height * 4);
-    this.depth = new Float32Array(width * height);
-  }
-  Framebuffer.prototype.clear = function (color) {
-    var n = this.width * this.height;
-    for (var i = 0; i < n; i++) {
-      var o = i * 4;
-      this.pixels[o] = color[0];
-      this.pixels[o + 1] = color[1];
-      this.pixels[o + 2] = color[2];
-      this.pixels[o + 3] = 255;
-      this.depth[i] = Infinity;
-    }
-  };
-  Framebuffer.prototype.setPixel = function (x, y, color) {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
-    var o = (y * this.width + x) * 4;
-    this.pixels[o] = color[0];
-    this.pixels[o + 1] = color[1];
-    this.pixels[o + 2] = color[2];
-    this.pixels[o + 3] = 255;
-  };
-  Framebuffer.prototype.setWithDepth = function (x, y, z, color) {
-    var i = y * this.width + x;
-    if (z < this.depth[i]) {
-      this.depth[i] = z;
-      var o = i * 4;
-      this.pixels[o] = color[0];
-      this.pixels[o + 1] = color[1];
-      this.pixels[o + 2] = color[2];
-      this.pixels[o + 3] = 255;
-      return true;
-    }
-    return false;
-  };
+  // scene.rs, ported
+  function cube(){var p=[v3(-1,-1,-1),v3(1,-1,-1),v3(1,1,-1),v3(-1,1,-1),v3(-1,-1,1),v3(1,-1,1),v3(1,1,1),v3(-1,1,1)];
+    var faces=[[0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]],t=[];
+    for(var i=0;i<faces.length;i++){var f=faces[i];t.push({a:p[f[0]],b:p[f[1]],c:p[f[2]]});t.push({a:p[f[0]],b:p[f[2]],c:p[f[3]]});}return t;}
+  function screen(clip,w,h){var x=clip[0]/clip[3],y=clip[1]/clip[3],z=clip[2]/clip[3];return{x:(x*0.5+0.5)*w,y:(1-(y*0.5+0.5))*h,z:z};}
+  function p3(p){return v3(p[0],p[1],p[2]);}
+  function normal(model,a,b,c){var ta=p3(mulP(model,a)),tb=p3(mulP(model,b)),tc=p3(mulP(model,c));return v3norm(v3cross(v3sub(tb,ta),v3sub(tc,ta)));}
+  var wire=[124,124,214];
 
-  // --- raster.rs, ported ---
-  function edge(a, b, p) {
-    return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-  }
-  function fillTriangle(fb, v0, v1, v2, color) {
-    var area = edge(v0, v1, v2);
-    if (area === 0) return;
+  function render(fb,w,h,ay,ax,camZ,wf){
+    fb.clear([247,247,251,255]);
+    var model=mul(rotY(ay),rotX(ax));
+    var view=lookAt(v3(0,0,camZ),v3(0,0,0),v3(0,1,0));
+    var proj=persp(Math.PI/4,w/h,0.1,100);
+    var mvp=mul(mul(proj,view),model);
+    var light=v3norm(v3(0.4,0.7,1.0));
+    var tris=cube();
+    for(var i=0;i<tris.length;i++){var tr=tris[i];
+      var nrm=normal(model,tr.a,tr.b,tr.c),it=Math.max(v3dot(nrm,light),0.12);
+      var r=Math.round(60+it*70),g=Math.round(60+it*70),b=Math.round(150+it*105);
+      var c=[Math.min(r,255),Math.min(g,255),Math.min(b,255)];
+      var sa=screen(mulP(mvp,tr.a),w,h),sb=screen(mulP(mvp,tr.b),w,h),sc=screen(mulP(mvp,tr.c),w,h);
+      if(wf){line(fb,sa,sb,wire);line(fb,sb,sc,wire);line(fb,sc,sa,wire);}else{fill(fb,sa,sb,sc,c);}}}
 
-    var minX = Math.max(0, Math.floor(Math.min(v0.x, v1.x, v2.x)));
-    var maxX = Math.min(fb.width - 1, Math.ceil(Math.max(v0.x, v1.x, v2.x)));
-    var minY = Math.max(0, Math.floor(Math.min(v0.y, v1.y, v2.y)));
-    var maxY = Math.min(fb.height - 1, Math.ceil(Math.max(v0.y, v1.y, v2.y)));
-    if (maxX < 0 || maxY < 0) return;
+  var canvas=document.getElementById('cube');
+  if(!canvas||!canvas.getContext)return;
+  var ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,fb=new FB(W,H);
+  var ay=0.7,ax=0.35,rotating=true,wf=false,speed=60,camZ=5,last=null;
+  var rB=document.getElementById('toggleRotate'),wB=document.getElementById('toggleWire'),sp=document.getElementById('speed');
+  rB.addEventListener('click',function(){rotating=!rotating;rB.textContent=rotating?'Pause':'Rotate';});
+  wB.addEventListener('click',function(){wf=!wf;wB.textContent=wf?'Shaded':'Wireframe';});
+  sp.addEventListener('input',function(){speed=parseFloat(sp.value)||0;});
 
-    for (var y = minY; y <= maxY; y++) {
-      for (var x = minX; x <= maxX; x++) {
-        var p = { x: x + 0.5, y: y + 0.5 };
-        var w0 = edge(v1, v2, p);
-        var w1 = edge(v2, v0, p);
-        var w2 = edge(v0, v1, p);
-        var inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
-        if (!inside) continue;
+  // drag to orbit
+  var dragging=false,lx=0,ly=0;
+  function down(e){dragging=true;var t=e.touches?e.touches[0]:e;lx=t.clientX;ly=t.clientY;}
+  function move(e){if(!dragging)return;var t=e.touches?e.touches[0]:e;ay+=(t.clientX-lx)*0.01;ax+=(t.clientY-ly)*0.01;
+    ax=Math.max(-1.4,Math.min(1.4,ax));lx=t.clientX;ly=t.clientY;if(e.cancelable)e.preventDefault();}
+  function up(){dragging=false;}
+  canvas.addEventListener('mousedown',down);window.addEventListener('mousemove',move);window.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',down,{passive:true});canvas.addEventListener('touchmove',move,{passive:false});window.addEventListener('touchend',up);
 
-        var l0 = w0 / area, l1 = w1 / area, l2 = w2 / area;
-        var z = l0 * v0.z + l1 * v1.z + l2 * v2.z;
-        fb.setWithDepth(x, y, z, color);
-      }
-    }
-  }
-  function drawLine(fb, a, b, color) {
-    var x0 = Math.round(a.x), y0 = Math.round(a.y);
-    var x1 = Math.round(b.x), y1 = Math.round(b.y);
-    var dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-    var dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    var err = dx + dy;
-    for (;;) {
-      fb.setPixel(x0, y0, color);
-      if (x0 === x1 && y0 === y1) break;
-      var e2 = 2 * err;
-      if (e2 >= dy) { err += dy; x0 += sx; }
-      if (e2 <= dx) { err += dx; y0 += sy; }
-    }
-  }
-
-  // --- scene.rs, ported ---
-  function cubeTriangles() {
-    var p = [
-      v3(-1, -1, -1), v3(1, -1, -1), v3(1, 1, -1), v3(-1, 1, -1),
-      v3(-1, -1, 1), v3(1, -1, 1), v3(1, 1, 1), v3(-1, 1, 1)
-    ];
-    var faces = [
-      [0, 1, 2, 3], // back
-      [5, 4, 7, 6], // front
-      [4, 0, 3, 7], // left
-      [1, 5, 6, 2], // right
-      [3, 2, 6, 7], // top
-      [4, 5, 1, 0]  // bottom
-    ];
-    var tris = [];
-    for (var i = 0; i < faces.length; i++) {
-      var f = faces[i];
-      tris.push({ a: p[f[0]], b: p[f[1]], c: p[f[2]] });
-      tris.push({ a: p[f[0]], b: p[f[2]], c: p[f[3]] });
-    }
-    return tris;
-  }
-  function toScreen(clip, width, height) {
-    var ndcX = clip[0] / clip[3];
-    var ndcY = clip[1] / clip[3];
-    var ndcZ = clip[2] / clip[3];
-    return {
-      x: (ndcX * 0.5 + 0.5) * width,
-      y: (1 - (ndcY * 0.5 + 0.5)) * height,
-      z: ndcZ
-    };
-  }
-  function point3(p) { return v3(p[0], p[1], p[2]); }
-  function modelNormal(model, a, b, c) {
-    var ta = point3(matMulPoint(model, a));
-    var tb = point3(matMulPoint(model, b));
-    var tc = point3(matMulPoint(model, c));
-    return v3normalize(v3cross(v3sub(tb, ta), v3sub(tc, ta)));
-  }
-
-  var wireColor = [255, 154, 60];
-
-  function renderFrame(fb, width, height, angleY, cameraZ, wireframe) {
-    fb.clear([20, 20, 30]);
-
-    var model = matMul(matRotationY(angleY), matRotationX(0.35));
-    var view = matLookAt(v3(0, 0, cameraZ), v3(0, 0, 0), v3(0, 1, 0));
-    var proj = matPerspective(Math.PI / 4, width / height, 0.1, 100);
-    var mvp = matMul(matMul(proj, view), model);
-    var lightDir = v3normalize(v3(0.4, 0.6, 1.0));
-
-    var tris = cubeTriangles();
-    for (var i = 0; i < tris.length; i++) {
-      var tri = tris[i];
-      var normal = modelNormal(model, tri.a, tri.b, tri.c);
-      var intensity = Math.max(v3dot(normal, lightDir), 0.05);
-      var base = 220;
-      var shade = Math.round(base * intensity);
-      var color = [shade, shade, Math.round(shade * 0.9)];
-
-      var sa = toScreen(matMulPoint(mvp, tri.a), width, height);
-      var sb = toScreen(matMulPoint(mvp, tri.b), width, height);
-      var sc = toScreen(matMulPoint(mvp, tri.c), width, height);
-
-      if (wireframe) {
-        drawLine(fb, sa, sb, wireColor);
-        drawLine(fb, sb, sc, wireColor);
-        drawLine(fb, sc, sa, wireColor);
-      } else {
-        fillTriangle(fb, sa, sb, sc, color);
-      }
-    }
-  }
-
-  // --- driver ---
-  var canvas = document.getElementById('cube');
-  if (!canvas || !canvas.getContext) return;
-  var ctx = canvas.getContext('2d');
-  var width = canvas.width, height = canvas.height;
-  var fb = new Framebuffer(width, height);
-
-  var angle = 0.6;
-  var rotating = true;
-  var wireframe = false;
-  var speed = 60;
-  var cameraZ = 5;
-  var last = null;
-
-  var rotateBtn = document.getElementById('toggleRotate');
-  var wireBtn = document.getElementById('toggleWire');
-  var speedInput = document.getElementById('speed');
-
-  if (rotateBtn) {
-    rotateBtn.addEventListener('click', function () {
-      rotating = !rotating;
-      rotateBtn.textContent = rotating ? 'Pause' : 'Rotate';
-    });
-  }
-  if (wireBtn) {
-    wireBtn.addEventListener('click', function () {
-      wireframe = !wireframe;
-      wireBtn.textContent = wireframe ? 'Shaded' : 'Wireframe';
-    });
-  }
-  if (speedInput) {
-    speed = parseFloat(speedInput.value) || 0;
-    speedInput.addEventListener('input', function () {
-      speed = parseFloat(speedInput.value) || 0;
-    });
-  }
-
-  function frame(t) {
-    if (last === null) last = t;
-    var dt = (t - last) / 1000;
-    last = t;
-    if (rotating) angle += dt * (speed / 60);
-
-    renderFrame(fb, width, height, angle, cameraZ, wireframe);
-    ctx.putImageData(new ImageData(fb.pixels, width, height), 0, 0);
-    requestAnimationFrame(frame);
-  }
+  function frame(t){if(last===null)last=t;var dt=(t-last)/1000;last=t;
+    if(rotating&&!dragging)ay+=dt*(speed/60);
+    render(fb,W,H,ay,ax,camZ,wf);
+    ctx.putImageData(new ImageData(fb.px,W,H),0,0);
+    requestAnimationFrame(frame);}
   requestAnimationFrame(frame);
 })();
 </script>
-
 </body>
 </html>
