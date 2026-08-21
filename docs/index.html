@@ -2,11 +2,308 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>prism</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism — a software rasterizer in Rust</title>
+<meta name="description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
+<meta name="author" content="Pavan Nallamothu">
+<link rel="canonical" href="https://pavanchow.github.io/prism/">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Prism — a software rasterizer in Rust">
+<meta property="og:description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
+<meta property="og:url" content="https://pavanchow.github.io/prism/">
+<meta property="og:site_name" content="Prism">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Prism",
+  "description": "Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Cross-platform",
+  "author": {
+    "@type": "Person",
+    "name": "Pavan Nallamothu"
+  },
+  "url": "https://pavanchow.github.io/prism/",
+  "programmingLanguage": "Rust"
+}
+</script>
+
+<style>
+  :root {
+    --accent: #ff5a1f;
+    --ink: #111111;
+    --muted: #6b6b6b;
+    --line: #eaeaea;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  header.hero {
+    padding: 120px 0 80px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  .kicker {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-size: 56px;
+    line-height: 1.08;
+    margin: 0 0 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    font-size: 20px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 640px;
+    margin: 0 auto 36px;
+  }
+  .btn-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--ink);
+    color: var(--ink);
+  }
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+  section { padding: 80px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+    text-align: center;
+  }
+  .lead {
+    text-align: center;
+    color: var(--muted);
+    font-size: 17px;
+    max-width: 640px;
+    margin: 0 auto 56px;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 28px;
+  }
+  .card h3 {
+    font-size: 18px;
+    margin: 0 0 10px;
+  }
+  .card p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .num {
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  pre {
+    background: #fafafa;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-size: 14px;
+    overflow-x: auto;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .canvas-wrap {
+    display: flex;
+    justify-content: center;
+  }
+  canvas {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #14141e;
+  }
+  footer {
+    padding: 48px 0 80px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  @media (max-width: 720px) {
+    h1 { font-size: 38px; }
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
-<h1>prism</h1>
-<p>Site coming soon.</p>
-<p><a href="https://github.com/pavanchow/prism">View repository</a></p>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Rust · No GPU · No graphics crates</div>
+    <h1>Prism</h1>
+    <p class="sub">A software rasterizer in Rust. It draws real 3D triangles on the CPU, readable end to end, with a framebuffer, a z-buffer, and barycentric math doing all the work.</p>
+    <div class="btn-row">
+      <a class="btn primary" href="https://github.com/pavanchow/prism">View on GitHub</a>
+      <a class="btn" href="#how">How it works</a>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <p class="lead">Four steps turn a list of triangles into pixels on screen, no dependencies beyond a CLI parser.</p>
+    <div class="cards">
+      <div class="card">
+        <div class="num">1</div>
+        <h3>Transform</h3>
+        <p>Vertices move through model, view, and projection matrices, written by hand, down to perspective divide.</p>
+      </div>
+      <div class="card">
+        <div class="num">2</div>
+        <h3>Rasterize</h3>
+        <p>Each triangle's bounding box is scanned, and barycentric coordinates decide which pixels fall inside it.</p>
+      </div>
+      <div class="card">
+        <div class="num">3</div>
+        <h3>Depth test</h3>
+        <p>A z-buffer keeps the nearest surface at every pixel, so triangles behind others are correctly hidden.</p>
+      </div>
+      <div class="card">
+        <div class="num">4</div>
+        <h3>Shade</h3>
+        <p>A directional light and a face normal set flat per-triangle brightness with one dot product.</p>
+      </div>
+      <div class="card">
+        <div class="num">5</div>
+        <h3>Output</h3>
+        <p>The finished framebuffer is written as binary PPM, a format simple enough to need no image crate.</p>
+      </div>
+      <div class="card">
+        <div class="num">6</div>
+        <h3>Command line</h3>
+        <p>One command renders the built-in demo scene to a file, with the output size configurable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Try it</h2>
+    <p class="lead">Render the demo scene to a PPM image with a single command.</p>
+    <pre>cargo run -- render -o out.ppm --width 800 --height 600</pre>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>In the browser</h2>
+    <p class="lead">The same barycentric idea, in a few lines of JavaScript on a canvas.</p>
+    <div class="canvas-wrap">
+      <canvas id="tri" width="360" height="280"></canvas>
+    </div>
+  </div>
+</section>
+
+<noscript>
+  <section>
+    <div class="wrap">
+      <h2>Prism: a software rasterizer in Rust</h2>
+      <p class="lead">Prism draws real 3D triangles on the CPU with no GPU and no graphics crates. It transforms vertices through a model, view, and projection pipeline, fills triangles with barycentric coordinates, resolves overlap with a z-buffer, shades with a simple directional light, and writes plain binary PPM images. See the README on GitHub for full usage and design notes.</p>
+    </div>
+  </section>
+</noscript>
+
+<footer>
+  By Pavan Nallamothu.
+</footer>
+
+<script>
+(function () {
+  var canvas = document.getElementById('tri');
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+
+  var verts = [
+    { x: w * 0.5, y: h * 0.15, shade: 235 },
+    { x: w * 0.85, y: h * 0.85, shade: 150 },
+    { x: w * 0.15, y: h * 0.85, shade: 90 }
+  ];
+
+  function edge(a, b, p) {
+    return (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+  }
+
+  var img = ctx.createImageData(w, h);
+  var area = edge(verts[0], verts[1], verts[2]);
+
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      var p = { x: x + 0.5, y: y + 0.5 };
+      var w0 = edge(verts[1], verts[2], p);
+      var w1 = edge(verts[2], verts[0], p);
+      var w2 = edge(verts[0], verts[1], p);
+      var inside = (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0);
+      var i = (y * w + x) * 4;
+      if (inside && area !== 0) {
+        var l0 = w0 / area, l1 = w1 / area, l2 = w2 / area;
+        var shade = l0 * verts[0].shade + l1 * verts[1].shade + l2 * verts[2].shade;
+        img.data[i] = shade * 0.6;
+        img.data[i + 1] = shade * 0.75;
+        img.data[i + 2] = shade;
+        img.data[i + 3] = 255;
+      } else {
+        img.data[i] = 20;
+        img.data[i + 1] = 20;
+        img.data[i + 2] = 30;
+        img.data[i + 3] = 255;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+})();
+</script>
+
 </body>
 </html>
