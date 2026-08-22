@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Conway's Game of Life</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+    cursor: crosshair;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  button, select {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button:hover { border-color: var(--accent); }
+  .label {
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 11px;
+    color: #6b6b80;
+  }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Conway's Game of Life</h1>
+  <p class="desc">Click or drag on the grid to draw cells. Standard birth and survival rules.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <button class="primary" id="playBtn">Play</button>
+      <button id="stepBtn">Step</button>
+      <button id="randBtn">Randomize</button>
+      <button id="clearBtn">Clear</button>
+      <select id="preset">
+        <option value="">Add preset...</option>
+        <option value="glider">Glider</option>
+        <option value="gun">Gosper Glider Gun</option>
+      </select>
+      <span class="label" id="genLabel">gen 0</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cell = 8;
+  const cols = Math.floor(W / cell);
+  const rows = Math.floor(H / cell);
+
+  let grid = new Uint8Array(cols * rows);
+  let playing = false;
+  let generation = 0;
+  let drawing = false;
+  let eraseMode = false;
+
+  const idx = (x, y) => y * cols + x;
+  const wrap = (v, m) => ((v % m) + m) % m;
+
+  function setCell(x, y, v){
+    x = wrap(x, cols); y = wrap(y, rows);
+    grid[idx(x,y)] = v;
+  }
+
+  function toggleAt(px, py, val){
+    const x = Math.floor(px / cell);
+    const y = Math.floor(py / cell);
+    if (x < 0 || x >= cols || y < 0 || y >= rows) return;
+    grid[idx(x,y)] = val;
+  }
+
+  function countNeighbors(x, y){
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy++){
+      for (let dx = -1; dx <= 1; dx++){
+        if (dx === 0 && dy === 0) continue;
+        const nx = wrap(x+dx, cols);
+        const ny = wrap(y+dy, rows);
+        n += grid[idx(nx,ny)];
+      }
+    }
+    return n;
+  }
+
+  function step(){
+    const next = new Uint8Array(cols * rows);
+    for (let y = 0; y < rows; y++){
+      for (let x = 0; x < cols; x++){
+        const alive = grid[idx(x,y)];
+        const n = countNeighbors(x,y);
+        if (alive){
+          next[idx(x,y)] = (n === 2 || n === 3) ? 1 : 0;
+        } else {
+          next[idx(x,y)] = (n === 3) ? 1 : 0;
+        }
+      }
+    }
+    grid = next;
+    generation++;
+    document.getElementById('genLabel').textContent = 'gen ' + generation;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#5b5bd6';
+    for (let y = 0; y < rows; y++){
+      for (let x = 0; x < cols; x++){
+        if (grid[idx(x,y)]){
+          ctx.fillRect(x*cell+1, y*cell+1, cell-1, cell-1);
+        }
+      }
+    }
+    ctx.strokeStyle = '#f1f1f8';
+    ctx.lineWidth = 1;
+  }
+
+  function randomize(){
+    for (let i = 0; i < grid.length; i++){
+      grid[i] = Math.random() < 0.25 ? 1 : 0;
+    }
+    generation = 0;
+    document.getElementById('genLabel').textContent = 'gen 0';
+  }
+
+  function clearGrid(){
+    grid.fill(0);
+    generation = 0;
+    document.getElementById('genLabel').textContent = 'gen 0';
+  }
+
+  function placePattern(name, ox, oy){
+    let cells = [];
+    if (name === 'glider'){
+      cells = [[1,0],[2,1],[0,2],[1,2],[2,2]];
+    } else if (name === 'gun'){
+      cells = [
+        [24,0],[22,1],[24,1],[12,2],[13,2],[20,2],[21,2],[34,2],[35,2],
+        [11,3],[15,3],[20,3],[21,3],[34,3],[35,3],
+        [0,4],[1,4],[10,4],[16,4],[20,4],[21,4],
+        [0,5],[1,5],[10,5],[14,5],[16,5],[17,5],[22,5],[24,5],
+        [10,6],[16,6],[24,6],
+        [11,7],[15,7],
+        [12,8],[13,8]
+      ];
+    }
+    for (const [cx, cy] of cells){
+      setCell(ox + cx, oy + cy, 1);
+    }
+  }
+
+  let lastTick = 0;
+  const stepIntervalMs = 90;
+  function loop(ts){
+    if (playing && ts - lastTick > stepIntervalMs){
+      step();
+      lastTick = ts;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const x = Math.floor(px / cell), y = Math.floor(py / cell);
+    if (x >= 0 && x < cols && y >= 0 && y < rows){
+      eraseMode = grid[idx(x,y)] === 1;
+      drawing = true;
+      toggleAt(px, py, eraseMode ? 0 : 1);
+    }
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (!drawing) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    toggleAt(px, py, eraseMode ? 0 : 1);
+  });
+  window.addEventListener('mouseup', () => { drawing = false; });
+
+  document.getElementById('playBtn').addEventListener('click', (e) => {
+    playing = !playing;
+    e.target.textContent = playing ? 'Pause' : 'Play';
+  });
+  document.getElementById('stepBtn').addEventListener('click', step);
+  document.getElementById('randBtn').addEventListener('click', randomize);
+  document.getElementById('clearBtn').addEventListener('click', clearGrid);
+  document.getElementById('preset').addEventListener('change', (e) => {
+    const val = e.target.value;
+    if (val) placePattern(val, Math.floor(cols/2)-5, Math.floor(rows/2)-4);
+    e.target.value = '';
+  });
+
+  randomize();
+  clearGrid();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

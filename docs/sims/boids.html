@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Boids</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
+  label {
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 11px;
+    color: #6b6b80;
+    letter-spacing: 0.02em;
+  }
+  input[type=range] { accent-color: var(--accent); width: 140px; }
+  .val { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: var(--accent); }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Boids</h1>
+  <p class="desc">Flocking from three simple rules: separation, alignment, cohesion.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <div class="ctrl">
+        <label>SEPARATION <span class="val" id="sepV"></span></label>
+        <input type="range" id="sep" min="0" max="3" step="0.05" value="1">
+      </div>
+      <div class="ctrl">
+        <label>ALIGNMENT <span class="val" id="aliV"></span></label>
+        <input type="range" id="ali" min="0" max="3" step="0.05" value="1">
+      </div>
+      <div class="ctrl">
+        <label>COHESION <span class="val" id="cohV"></span></label>
+        <input type="range" id="coh" min="0" max="3" step="0.05" value="1">
+      </div>
+      <div class="ctrl">
+        <label>BOID COUNT <span class="val" id="cntV"></span></label>
+        <input type="range" id="cnt" min="10" max="300" step="5" value="120">
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const sepSlider = document.getElementById('sep');
+  const aliSlider = document.getElementById('ali');
+  const cohSlider = document.getElementById('coh');
+  const cntSlider = document.getElementById('cnt');
+  const sepV = document.getElementById('sepV');
+  const aliV = document.getElementById('aliV');
+  const cohV = document.getElementById('cohV');
+  const cntV = document.getElementById('cntV');
+
+  let boids = [];
+  const maxSpeed = 3.2;
+  const maxForce = 0.09;
+  const perception = 55;
+  const sepRadius = 24;
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  function makeBoid(){
+    return {
+      x: rand(0,W), y: rand(0,H),
+      vx: rand(-1,1), vy: rand(-1,1)
+    };
+  }
+
+  function setCount(n){
+    n = Math.round(n);
+    if (boids.length < n) {
+      while (boids.length < n) boids.push(makeBoid());
+    } else {
+      boids.length = n;
+    }
+  }
+
+  function limit(vx, vy, max){
+    const m = Math.hypot(vx, vy);
+    if (m > max && m > 0) return [vx/m*max, vy/m*max];
+    return [vx, vy];
+  }
+
+  function step(){
+    const sepW = parseFloat(sepSlider.value);
+    const aliW = parseFloat(aliSlider.value);
+    const cohW = parseFloat(cohSlider.value);
+
+    const accs = new Array(boids.length);
+
+    for (let i = 0; i < boids.length; i++){
+      const b = boids[i];
+      let sepX=0, sepY=0, sepN=0;
+      let aliX=0, aliY=0, aliN=0;
+      let cohX=0, cohY=0, cohN=0;
+
+      for (let j = 0; j < boids.length; j++){
+        if (i === j) continue;
+        const o = boids[j];
+        const dx = o.x - b.x, dy = o.y - b.y;
+        const d = Math.hypot(dx, dy);
+        if (d < perception && d > 0.0001){
+          aliX += o.vx; aliY += o.vy; aliN++;
+          cohX += o.x; cohY += o.y; cohN++;
+          if (d < sepRadius){
+            sepX -= dx / d; sepY -= dy / d; sepN++;
+          }
+        }
+      }
+
+      let ax = 0, ay = 0;
+
+      if (sepN > 0){
+        sepX /= sepN; sepY /= sepN;
+        [sepX, sepY] = limit(sepX, sepY, maxForce);
+        ax += sepX * sepW * 8;
+        ay += sepY * sepW * 8;
+      }
+      if (aliN > 0){
+        aliX /= aliN; aliY /= aliN;
+        let dvx = aliX - b.vx, dvy = aliY - b.vy;
+        [dvx, dvy] = limit(dvx, dvy, maxForce);
+        ax += dvx * aliW;
+        ay += dvy * aliW;
+      }
+      if (cohN > 0){
+        cohX /= cohN; cohY /= cohN;
+        let dx = cohX - b.x, dy = cohY - b.y;
+        const m = Math.hypot(dx, dy);
+        if (m > 0){ dx = dx/m*maxSpeed; dy = dy/m*maxSpeed; }
+        let sx = dx - b.vx, sy = dy - b.vy;
+        [sx, sy] = limit(sx, sy, maxForce);
+        ax += sx * cohW;
+        ay += sy * cohW;
+      }
+
+      accs[i] = [ax, ay];
+    }
+
+    for (let i = 0; i < boids.length; i++){
+      const b = boids[i];
+      b.vx += accs[i][0];
+      b.vy += accs[i][1];
+      [b.vx, b.vy] = limit(b.vx, b.vy, maxSpeed);
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x < 0) b.x += W;
+      if (b.x > W) b.x -= W;
+      if (b.y < 0) b.y += H;
+      if (b.y > H) b.y -= H;
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#5b5bd6';
+    for (const b of boids){
+      const angle = Math.atan2(b.vy, b.vx);
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.moveTo(6,0);
+      ctx.lineTo(-5,3.5);
+      ctx.lineTo(-5,-3.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function loop(){
+    if (boids.length > 0) step();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function refreshLabels(){
+    sepV.textContent = parseFloat(sepSlider.value).toFixed(2);
+    aliV.textContent = parseFloat(aliSlider.value).toFixed(2);
+    cohV.textContent = parseFloat(cohSlider.value).toFixed(2);
+    cntV.textContent = cntSlider.value;
+  }
+
+  [sepSlider, aliSlider, cohSlider].forEach(s => s.addEventListener('input', refreshLabels));
+  cntSlider.addEventListener('input', () => { setCount(cntSlider.value); refreshLabels(); });
+
+  setCount(cntSlider.value);
+  refreshLabels();
+  loop();
+})();
+</script>
+</body>
+</html>

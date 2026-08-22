@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sorting Visualizer</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
+  label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+  input[type=range] { accent-color: var(--accent); width: 140px; }
+  .val { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: var(--accent); }
+  button, select {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Sorting Visualizer</h1>
+  <p class="desc">Watch bubble, insertion, quick, and merge sort work through real comparisons and swaps.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="420"></canvas>
+    <div class="controls">
+      <select id="algo">
+        <option value="bubble">Bubble Sort</option>
+        <option value="insertion">Insertion Sort</option>
+        <option value="quick">Quick Sort</option>
+        <option value="merge">Merge Sort</option>
+      </select>
+      <div class="ctrl">
+        <label>SPEED <span class="val" id="spV"></span></label>
+        <input type="range" id="speed" min="1" max="60" step="1" value="20">
+      </div>
+      <button id="shuffleBtn">Shuffle</button>
+      <button class="primary" id="sortBtn">Sort</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const n = 60;
+  let arr = [];
+  let highlight = [];
+  let sortedUpTo = -1;
+  let running = false;
+  let generator = null;
+
+  const speedSlider = document.getElementById('speed');
+  const spV = document.getElementById('spV');
+
+  function shuffle(){
+    arr = [];
+    for (let i = 0; i < n; i++) arr.push(20 + Math.random()*(H-40));
+    highlight = [];
+    sortedUpTo = -1;
+    running = false;
+    generator = null;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const bw = W / arr.length;
+    for (let i = 0; i < arr.length; i++){
+      let color = '#c9c9ee';
+      if (highlight.includes(i)) color = '#5b5bd6';
+      if (sortedUpTo >= 0 && i >= sortedUpTo) color = '#a3d9a5';
+      ctx.fillStyle = color;
+      ctx.fillRect(i*bw+1, H-arr[i], bw-2, arr[i]);
+    }
+  }
+
+  function* bubbleSort(a){
+    const b = a;
+    for (let i = 0; i < b.length; i++){
+      for (let j = 0; j < b.length - i - 1; j++){
+        highlight = [j, j+1];
+        yield;
+        if (b[j] > b[j+1]){
+          [b[j], b[j+1]] = [b[j+1], b[j]];
+          yield;
+        }
+      }
+      sortedUpTo = b.length - i - 1;
+    }
+    sortedUpTo = 0;
+    highlight = [];
+  }
+
+  function* insertionSort(a){
+    const b = a;
+    for (let i = 1; i < b.length; i++){
+      let j = i;
+      while (j > 0 && b[j-1] > b[j]){
+        highlight = [j-1, j];
+        yield;
+        [b[j-1], b[j]] = [b[j], b[j-1]];
+        yield;
+        j--;
+      }
+    }
+    sortedUpTo = 0;
+    highlight = [];
+  }
+
+  function* quickSort(a){
+    const b = a;
+    function* qs(lo, hi){
+      if (lo >= hi) return;
+      const pivot = b[hi];
+      let i = lo - 1;
+      for (let j = lo; j < hi; j++){
+        highlight = [j, hi];
+        yield;
+        if (b[j] < pivot){
+          i++;
+          [b[i], b[j]] = [b[j], b[i]];
+          yield;
+        }
+      }
+      [b[i+1], b[hi]] = [b[hi], b[i+1]];
+      yield;
+      yield* qs(lo, i);
+      yield* qs(i+2, hi);
+    }
+    yield* qs(0, b.length-1);
+    sortedUpTo = 0;
+    highlight = [];
+  }
+
+  function* mergeSort(a){
+    const b = a;
+    function* ms(lo, hi){
+      if (hi - lo <= 1) return;
+      const mid = Math.floor((lo+hi)/2);
+      yield* ms(lo, mid);
+      yield* ms(mid, hi);
+      const left = b.slice(lo, mid);
+      const right = b.slice(mid, hi);
+      let i = 0, j = 0, k = lo;
+      while (i < left.length && j < right.length){
+        highlight = [k];
+        yield;
+        if (left[i] <= right[j]){ b[k] = left[i]; i++; }
+        else { b[k] = right[j]; j++; }
+        k++;
+        yield;
+      }
+      while (i < left.length){ b[k] = left[i]; i++; k++; highlight=[k-1]; yield; }
+      while (j < right.length){ b[k] = right[j]; j++; k++; highlight=[k-1]; yield; }
+    }
+    yield* ms(0, b.length);
+    sortedUpTo = 0;
+    highlight = [];
+  }
+
+  function makeGenerator(){
+    const algo = document.getElementById('algo').value;
+    if (algo === 'bubble') return bubbleSort(arr);
+    if (algo === 'insertion') return insertionSort(arr);
+    if (algo === 'quick') return quickSort(arr);
+    return mergeSort(arr);
+  }
+
+  let frame = 0;
+  function loop(){
+    frame++;
+    const stepsPerFrame = Math.max(1, Math.floor(parseInt(speedSlider.value)/4));
+    if (running && generator){
+      for (let s = 0; s < stepsPerFrame; s++){
+        const res = generator.next();
+        if (res.done){
+          running = false;
+          sortedUpTo = 0;
+          highlight = [];
+          break;
+        }
+      }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('shuffleBtn').addEventListener('click', shuffle);
+  document.getElementById('sortBtn').addEventListener('click', () => {
+    if (running) return;
+    generator = makeGenerator();
+    running = true;
+  });
+  speedSlider.addEventListener('input', () => { spV.textContent = speedSlider.value; });
+
+  spV.textContent = speedSlider.value;
+  shuffle();
+  loop();
+})();
+</script>
+</body>
+</html>

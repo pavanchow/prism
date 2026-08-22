@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Maze Generation and Solving</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  button, select {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Maze Generation and Solving</h1>
+  <p class="desc">Randomized depth-first-search carves the maze, then breadth-first-search finds the path.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <button class="primary" id="regenBtn">Regenerate</button>
+      <select id="algo">
+        <option value="bfs">Solve with BFS</option>
+        <option value="astar">Solve with A*</option>
+      </select>
+      <span class="label" id="statusLabel">generating...</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cols = 30, rows = 20;
+  const cell = Math.min(W/cols, H/rows);
+  const offX = (W - cols*cell)/2;
+  const offY = (H - rows*cell)/2;
+
+  const statusLabel = document.getElementById('statusLabel');
+  const algoSelect = document.getElementById('algo');
+
+  let grid, stack, current, generating, solving, path, visitedOrder, visitedSet, solveStep;
+
+  function makeCellData(){
+    const cells = [];
+    for (let y = 0; y < rows; y++){
+      for (let x = 0; x < cols; x++){
+        cells.push({ x, y, visited: false, walls: {N:true,S:true,E:true,W:true} });
+      }
+    }
+    return cells;
+  }
+  const idx = (x,y) => y*cols + x;
+
+  function neighborsUnvisited(c){
+    const list = [];
+    const dirs = [
+      ['N', c.x, c.y-1, 'S'],
+      ['S', c.x, c.y+1, 'N'],
+      ['E', c.x+1, c.y, 'W'],
+      ['W', c.x-1, c.y, 'E']
+    ];
+    for (const [dir, nx, ny, opp] of dirs){
+      if (nx >= 0 && nx < cols && ny >= 0 && ny < rows){
+        const n = grid[idx(nx,ny)];
+        if (!n.visited) list.push([dir, n, opp]);
+      }
+    }
+    return list;
+  }
+
+  function startGeneration(){
+    grid = makeCellData();
+    stack = [];
+    current = grid[0];
+    current.visited = true;
+    stack.push(current);
+    generating = true;
+    solving = false;
+    path = [];
+    visitedOrder = [];
+    visitedSet = null;
+    solveStep = 0;
+    statusLabel.textContent = 'generating...';
+  }
+
+  function generationTick(){
+    if (stack.length === 0){ generating = false; startSolving(); return; }
+    current = stack[stack.length-1];
+    const options = neighborsUnvisited(current);
+    if (options.length === 0){
+      stack.pop();
+      return;
+    }
+    const [dir, next, opp] = options[Math.floor(Math.random()*options.length)];
+    current.walls[dir] = false;
+    next.walls[opp] = false;
+    next.visited = true;
+    stack.push(next);
+  }
+
+  function neighborsOpen(c){
+    const list = [];
+    if (!c.walls.N && c.y > 0) list.push(grid[idx(c.x, c.y-1)]);
+    if (!c.walls.S && c.y < rows-1) list.push(grid[idx(c.x, c.y+1)]);
+    if (!c.walls.E && c.x < cols-1) list.push(grid[idx(c.x+1, c.y)]);
+    if (!c.walls.W && c.x > 0) list.push(grid[idx(c.x-1, c.y)]);
+    return list;
+  }
+
+  function startSolving(){
+    solving = true;
+    statusLabel.textContent = 'solving...';
+    const start = grid[idx(0,0)];
+    const goal = grid[idx(cols-1, rows-1)];
+
+    if (algoSelect.value === 'astar'){
+      path = astar(start, goal);
+    } else {
+      path = bfs(start, goal);
+    }
+    solveStep = 0;
+  }
+
+  function bfs(start, goal){
+    const cameFrom = new Map();
+    const q = [start];
+    const seen = new Set([idx(start.x,start.y)]);
+    let found = false;
+    while (q.length){
+      const c = q.shift();
+      if (c === goal){ found = true; break; }
+      for (const n of neighborsOpen(c)){
+        const key = idx(n.x,n.y);
+        if (!seen.has(key)){
+          seen.add(key);
+          cameFrom.set(key, c);
+          q.push(n);
+        }
+      }
+    }
+    if (!found) return [];
+    return reconstruct(cameFrom, goal, start);
+  }
+
+  function astar(start, goal){
+    const h = (a,b) => Math.abs(a.x-b.x) + Math.abs(a.y-b.y);
+    const gScore = new Map([[idx(start.x,start.y), 0]]);
+    const cameFrom = new Map();
+    const open = [start];
+    const inOpen = new Set([idx(start.x,start.y)]);
+
+    while (open.length){
+      open.sort((a,b) => (gScore.get(idx(a.x,a.y))+h(a,goal)) - (gScore.get(idx(b.x,b.y))+h(b,goal)));
+      const c = open.shift();
+      const ckey = idx(c.x,c.y);
+      inOpen.delete(ckey);
+      if (c === goal) return reconstruct(cameFrom, goal, start);
+      for (const n of neighborsOpen(c)){
+        const nkey = idx(n.x,n.y);
+        const tentative = gScore.get(ckey) + 1;
+        if (tentative < (gScore.has(nkey) ? gScore.get(nkey) : Infinity)){
+          cameFrom.set(nkey, c);
+          gScore.set(nkey, tentative);
+          if (!inOpen.has(nkey)){ open.push(n); inOpen.add(nkey); }
+        }
+      }
+    }
+    return [];
+  }
+
+  function reconstruct(cameFrom, goal, start){
+    const result = [goal];
+    let c = goal;
+    while (c !== start){
+      const key = idx(c.x,c.y);
+      if (!cameFrom.has(key)) break;
+      c = cameFrom.get(key);
+      result.push(c);
+    }
+    result.reverse();
+    return result;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle = '#22223a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'square';
+
+    for (const c of grid){
+      const px = offX + c.x*cell, py = offY + c.y*cell;
+      ctx.beginPath();
+      if (c.walls.N){ ctx.moveTo(px,py); ctx.lineTo(px+cell,py); }
+      if (c.walls.S){ ctx.moveTo(px,py+cell); ctx.lineTo(px+cell,py+cell); }
+      if (c.walls.E){ ctx.moveTo(px+cell,py); ctx.lineTo(px+cell,py+cell); }
+      if (c.walls.W){ ctx.moveTo(px,py); ctx.lineTo(px,py+cell); }
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#c9c9ee';
+    if (generating && current){
+      ctx.fillRect(offX+current.x*cell+cell*0.25, offY+current.y*cell+cell*0.25, cell*0.5, cell*0.5);
+    }
+
+    if (solving || (!generating && path.length)){
+      const shown = Math.min(solveStep, path.length);
+      ctx.fillStyle = '#5b5bd6';
+      for (let i = 0; i < shown; i++){
+        const c = path[i];
+        ctx.fillRect(offX+c.x*cell+cell*0.25, offY+c.y*cell+cell*0.25, cell*0.5, cell*0.5);
+      }
+    }
+
+    ctx.fillStyle = '#2ecc71';
+    ctx.fillRect(offX+cell*0.15, offY+cell*0.15, cell*0.7, cell*0.7);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(offX+(cols-1)*cell+cell*0.15, offY+(rows-1)*cell+cell*0.15, cell*0.7, cell*0.7);
+  }
+
+  let frameCount = 0;
+  function loop(){
+    frameCount++;
+    if (generating){
+      for (let i = 0; i < 3; i++) generationTick();
+    } else if (solving){
+      solveStep += 1;
+      if (solveStep >= path.length + 5){
+        solving = false;
+        statusLabel.textContent = path.length ? 'solved' : 'no path found';
+      }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('regenBtn').addEventListener('click', startGeneration);
+  algoSelect.addEventListener('change', () => {
+    if (!generating){ startSolving(); }
+  });
+
+  startGeneration();
+  loop();
+})();
+</script>
+</body>
+</html>

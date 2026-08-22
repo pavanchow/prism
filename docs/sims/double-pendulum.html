@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Double Pendulum</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+    cursor: grab;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Double Pendulum</h1>
+  <p class="desc">Chaotic motion from exact Lagrangian equations. Drag the bobs to set a new starting angle.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <button class="primary" id="resetBtn">Reset</button>
+      <span class="label">drag either bob, release to let go</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const originX = W/2, originY = 120;
+
+  const g = 9.81;
+  const L1 = 120, L2 = 120;
+  const m1 = 10, m2 = 10;
+
+  let a1, a2, a1v, a2v;
+  let dragging = null;
+  let trail = [];
+
+  function reset(){
+    a1 = Math.PI/2 + 0.3;
+    a2 = Math.PI/2;
+    a1v = 0;
+    a2v = 0;
+    trail = [];
+  }
+
+  function derivatives(a1, a2, a1v, a2v){
+    const num1 = -g*(2*m1+m2)*Math.sin(a1) - m2*g*Math.sin(a1-2*a2)
+      - 2*Math.sin(a1-a2)*m2*(a2v*a2v*L2 + a1v*a1v*L1*Math.cos(a1-a2));
+    const den1 = L1*(2*m1 + m2 - m2*Math.cos(2*a1-2*a2));
+    const a1a = num1/den1;
+
+    const num2 = 2*Math.sin(a1-a2)*(a1v*a1v*L1*(m1+m2) + g*(m1+m2)*Math.cos(a1) + a2v*a2v*L2*m2*Math.cos(a1-a2));
+    const den2 = L2*(2*m1 + m2 - m2*Math.cos(2*a1-2*a2));
+    const a2a = num2/den2;
+
+    return [a1v, a2v, a1a, a2a];
+  }
+
+  function rk4Step(dt){
+    const [k1a1v,k1a2v,k1a1a,k1a2a] = derivatives(a1,a2,a1v,a2v);
+    const [k2a1v,k2a2v,k2a1a,k2a2a] = derivatives(a1+k1a1v*dt/2, a2+k1a2v*dt/2, a1v+k1a1a*dt/2, a2v+k1a2a*dt/2);
+    const [k3a1v,k3a2v,k3a1a,k3a2a] = derivatives(a1+k2a1v*dt/2, a2+k2a2v*dt/2, a1v+k2a1a*dt/2, a2v+k2a2a*dt/2);
+    const [k4a1v,k4a2v,k4a1a,k4a2a] = derivatives(a1+k3a1v*dt, a2+k3a2v*dt, a1v+k3a1a*dt, a2v+k3a2a*dt);
+
+    a1 += dt/6*(k1a1v + 2*k2a1v + 2*k3a1v + k4a1v);
+    a2 += dt/6*(k1a2v + 2*k2a2v + 2*k3a2v + k4a2v);
+    a1v += dt/6*(k1a1a + 2*k2a1a + 2*k3a1a + k4a1a);
+    a2v += dt/6*(k1a2a + 2*k2a2a + 2*k3a2a + k4a2a);
+  }
+
+  function positions(){
+    const x1 = originX + L1*Math.sin(a1);
+    const y1 = originY + L1*Math.cos(a1);
+    const x2 = x1 + L2*Math.sin(a2);
+    const y2 = y1 + L2*Math.cos(a2);
+    return [x1,y1,x2,y2];
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    const [x1,y1,x2,y2] = positions();
+
+    trail.push([x2,y2]);
+    if (trail.length > 400) trail.shift();
+
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i < trail.length; i++){
+      const alpha = i / trail.length;
+      ctx.strokeStyle = `rgba(91,91,214,${alpha*0.5})`;
+      ctx.beginPath();
+      ctx.moveTo(trail[i-1][0], trail[i-1][1]);
+      ctx.lineTo(trail[i][0], trail[i][1]);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#b9b9e6';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(originX, originY);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#22223a';
+    ctx.beginPath();
+    ctx.arc(originX, originY, 4, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#5b5bd6';
+    ctx.beginPath();
+    ctx.arc(x1, y1, 10, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#8f8fe0';
+    ctx.beginPath();
+    ctx.arc(x2, y2, 10, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function loop(){
+    if (!dragging){
+      const substeps = 4;
+      const dt = 1/60/substeps;
+      for (let i = 0; i < substeps; i++) rk4Step(dt);
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function mousePos(e){
+    const rect = canvas.getBoundingClientRect();
+    return [e.clientX - rect.left, e.clientY - rect.top];
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const [mx,my] = mousePos(e);
+    const [x1,y1,x2,y2] = positions();
+    if (Math.hypot(mx-x1,my-y1) < 16){ dragging = 1; }
+    else if (Math.hypot(mx-x2,my-y2) < 16){ dragging = 2; }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const [mx,my] = mousePos(e);
+    if (dragging === 1){
+      a1 = Math.atan2(mx-originX, my-originY);
+      a1v = 0; a2v = 0;
+    } else if (dragging === 2){
+      const [x1,y1] = positions();
+      a2 = Math.atan2(mx-x1, my-y1);
+      a1v = 0; a2v = 0;
+    }
+  });
+
+  window.addEventListener('mouseup', () => { dragging = null; });
+
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  reset();
+  loop();
+})();
+</script>
+</body>
+</html>

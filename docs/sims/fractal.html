@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mandelbrot Explorer</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #050510;
+    border: 1px solid #eeeef6;
+    display: block;
+    cursor: grab;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 6px; min-width: 130px; }
+  label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+  input[type=range] { accent-color: var(--accent); width: 150px; }
+  .val { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: var(--accent); }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Mandelbrot Explorer</h1>
+  <p class="desc">Drag to pan, scroll or use the buttons to zoom, tune iteration depth for finer detail.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <div class="ctrl">
+        <label>ITERATIONS <span class="val" id="iterV"></span></label>
+        <input type="range" id="iter" min="30" max="500" step="10" value="120">
+      </div>
+      <button id="zoomInBtn">Zoom In</button>
+      <button id="zoomOutBtn">Zoom Out</button>
+      <button class="primary" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const imgData = ctx.createImageData(W, H);
+
+  const iterSlider = document.getElementById('iter');
+  const iterV = document.getElementById('iterV');
+
+  let centerX = -0.5, centerY = 0, scale = 3.0;
+  let dragging = false, lastX = 0, lastY = 0;
+  let dirty = true;
+
+  function palette(t){
+    if (t >= 1) return [5, 5, 16];
+    const r = Math.floor(9 + 200 * Math.pow(t, 0.35));
+    const g = Math.floor(10 + 120 * Math.pow(t, 0.6));
+    const b = Math.floor(40 + 210 * Math.pow(t, 0.25));
+    return [Math.min(255,r), Math.min(255,g), Math.min(255,b)];
+  }
+
+  function render(){
+    const maxIter = parseInt(iterSlider.value);
+    const data = imgData.data;
+    const aspect = W / H;
+    const rangeX = scale * aspect;
+    const rangeY = scale;
+
+    for (let py = 0; py < H; py++){
+      const y0 = centerY + (py / H - 0.5) * rangeY;
+      for (let px = 0; px < W; px++){
+        const x0 = centerX + (px / W - 0.5) * rangeX;
+        let x = 0, y = 0, iter = 0;
+        let x2 = 0, y2 = 0;
+        while (x2 + y2 <= 4 && iter < maxIter){
+          y = 2*x*y + y0;
+          x = x2 - y2 + x0;
+          x2 = x*x;
+          y2 = y*y;
+          iter++;
+        }
+        let t;
+        if (iter >= maxIter){
+          t = 1;
+        } else {
+          const log_zn = Math.log(x2+y2) / 2;
+          const nu = Math.log(log_zn / Math.LN2) / Math.LN2;
+          t = (iter + 1 - nu) / maxIter;
+          t = Math.max(0, Math.min(0.999, t));
+        }
+        const [r,g,b] = palette(t);
+        const idx = (py*W+px)*4;
+        data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 255;
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function zoom(factor, cx, cy){
+    if (cx === undefined) cx = W/2;
+    if (cy === undefined) cy = H/2;
+    const aspect = W/H;
+    const rangeX = scale * aspect, rangeY = scale;
+    const worldX = centerX + (cx/W - 0.5) * rangeX;
+    const worldY = centerY + (cy/H - 0.5) * rangeY;
+    scale *= factor;
+    centerX = worldX - (cx/W - 0.5) * scale * aspect;
+    centerY = worldY - (cy/H - 0.5) * scale;
+    dirty = true;
+  }
+
+  function reset(){
+    centerX = -0.5; centerY = 0; scale = 3.0;
+    dirty = true;
+  }
+
+  function loop(){
+    if (dirty){
+      render();
+      dirty = false;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    dragging = true;
+    lastX = e.clientX; lastY = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mouseup', () => { dragging = false; canvas.style.cursor = 'grab'; });
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    const aspect = W/H;
+    centerX -= dx / W * scale * aspect;
+    centerY -= dy / H * scale;
+    dirty = true;
+  });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    zoom(e.deltaY < 0 ? 0.85 : 1.18, cx, cy);
+  }, { passive: false });
+
+  document.getElementById('zoomInBtn').addEventListener('click', () => zoom(0.6));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => zoom(1.6));
+  document.getElementById('resetBtn').addEventListener('click', reset);
+  iterSlider.addEventListener('input', () => { iterV.textContent = iterSlider.value; dirty = true; });
+
+  iterV.textContent = iterSlider.value;
+  loop();
+})();
+</script>
+</body>
+</html>

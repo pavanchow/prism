@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>N-Body Gravity</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #050510;
+    border: 1px solid #eeeef6;
+    display: block;
+    cursor: crosshair;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>N-Body Gravity</h1>
+  <p class="desc">Click to drop a mass. Every body pulls on every other body under real inverse-square gravity.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <button class="primary" id="resetBtn">Reset</button>
+      <span class="label" id="countLabel">0 bodies</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const G = 800;
+  const softening = 12;
+  const maxTrail = 60;
+
+  let bodies = [];
+
+  function seed(){
+    bodies = [];
+    bodies.push({ x: W/2, y: H/2, vx: 0, vy: 0, mass: 4000, trail: [], color: '#f5d76e' });
+    for (let i = 0; i < 4; i++){
+      const angle = (i/4) * Math.PI * 2;
+      const r = 130 + i*30;
+      const x = W/2 + Math.cos(angle)*r;
+      const y = H/2 + Math.sin(angle)*r;
+      const speed = Math.sqrt(G*4000/r);
+      bodies.push({
+        x, y,
+        vx: -Math.sin(angle)*speed,
+        vy: Math.cos(angle)*speed,
+        mass: 20 + Math.random()*20,
+        trail: [],
+        color: '#8f8fe0'
+      });
+    }
+    document.getElementById('countLabel').textContent = bodies.length + ' bodies';
+  }
+
+  function step(dt){
+    const n = bodies.length;
+    const ax = new Array(n).fill(0);
+    const ay = new Array(n).fill(0);
+
+    for (let i = 0; i < n; i++){
+      for (let j = i+1; j < n; j++){
+        const bi = bodies[i], bj = bodies[j];
+        const dx = bj.x - bi.x, dy = bj.y - bi.y;
+        const distSq = dx*dx + dy*dy + softening*softening;
+        const dist = Math.sqrt(distSq);
+        const f = G / distSq;
+        const fx = f * dx / dist;
+        const fy = f * dy / dist;
+        ax[i] += fx * bj.mass;
+        ay[i] += fy * bj.mass;
+        ax[j] -= fx * bi.mass;
+        ay[j] -= fy * bi.mass;
+      }
+    }
+
+    for (let i = 0; i < n; i++){
+      const b = bodies[i];
+      b.vx += ax[i]*dt;
+      b.vy += ay[i]*dt;
+      b.x += b.vx*dt;
+      b.y += b.vy*dt;
+      b.trail.push([b.x,b.y]);
+      if (b.trail.length > maxTrail) b.trail.shift();
+    }
+  }
+
+  function draw(){
+    ctx.fillStyle = 'rgba(5,5,16,0.35)';
+    ctx.fillRect(0,0,W,H);
+
+    for (const b of bodies){
+      for (let i = 1; i < b.trail.length; i++){
+        const alpha = (i / b.trail.length) * 0.5;
+        ctx.strokeStyle = `rgba(143,143,224,${alpha})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(b.trail[i-1][0], b.trail[i-1][1]);
+        ctx.lineTo(b.trail[i][0], b.trail[i][1]);
+        ctx.stroke();
+      }
+    }
+
+    for (const b of bodies){
+      const r = Math.max(2, Math.cbrt(b.mass));
+      ctx.fillStyle = b.color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function loop(){
+    if (bodies.length > 0){
+      const dt = 1/60;
+      step(dt);
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    bodies.push({
+      x, y,
+      vx: (Math.random()-0.5)*40,
+      vy: (Math.random()-0.5)*40,
+      mass: 40 + Math.random()*60,
+      trail: [],
+      color: '#5b5bd6'
+    });
+    document.getElementById('countLabel').textContent = bodies.length + ' bodies';
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', seed);
+
+  seed();
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0,0,W,H);
+  loop();
+})();
+</script>
+</body>
+</html>

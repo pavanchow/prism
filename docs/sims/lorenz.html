@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lorenz Attractor</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #050510;
+    border: 1px solid #eeeef6;
+    display: block;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 6px; min-width: 110px; }
+  label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+  input[type=range] { accent-color: var(--accent); width: 140px; }
+  .val { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: var(--accent); }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Lorenz Attractor</h1>
+  <p class="desc">A rotating 3D projection of the classic chaotic system, integrated in real time.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <div class="ctrl">
+        <label>SIGMA <span class="val" id="sV"></span></label>
+        <input type="range" id="sigma" min="0" max="20" step="0.1" value="10">
+      </div>
+      <div class="ctrl">
+        <label>RHO <span class="val" id="rV"></span></label>
+        <input type="range" id="rho" min="0" max="50" step="0.5" value="28">
+      </div>
+      <div class="ctrl">
+        <label>BETA <span class="val" id="bV"></span></label>
+        <input type="range" id="beta" min="0" max="10" step="0.05" value="2.67">
+      </div>
+      <button class="primary" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const sigmaSlider = document.getElementById('sigma');
+  const rhoSlider = document.getElementById('rho');
+  const betaSlider = document.getElementById('beta');
+  const sV = document.getElementById('sV');
+  const rV = document.getElementById('rV');
+  const bV = document.getElementById('bV');
+
+  let x, y, z, points, angle;
+
+  function reset(){
+    x = 0.1; y = 0; z = 0;
+    points = [];
+    angle = 0;
+  }
+
+  function derivative(x, y, z, sigma, rho, beta){
+    return [
+      sigma * (y - x),
+      x * (rho - z) - y,
+      x * y - beta * z
+    ];
+  }
+
+  function rk4(dt){
+    const sigma = parseFloat(sigmaSlider.value);
+    const rho = parseFloat(rhoSlider.value);
+    const beta = parseFloat(betaSlider.value);
+
+    const [k1x,k1y,k1z] = derivative(x,y,z,sigma,rho,beta);
+    const [k2x,k2y,k2z] = derivative(x+k1x*dt/2, y+k1y*dt/2, z+k1z*dt/2, sigma,rho,beta);
+    const [k3x,k3y,k3z] = derivative(x+k2x*dt/2, y+k2y*dt/2, z+k2z*dt/2, sigma,rho,beta);
+    const [k4x,k4y,k4z] = derivative(x+k3x*dt, y+k3y*dt, z+k3z*dt, sigma,rho,beta);
+
+    x += dt/6*(k1x+2*k2x+2*k3x+k4x);
+    y += dt/6*(k1y+2*k2y+2*k3y+k4y);
+    z += dt/6*(k1z+2*k2z+2*k3z+k4z);
+
+    if (!isFinite(x) || !isFinite(y) || !isFinite(z) || Math.abs(x) > 1000 || Math.abs(y) > 1000 || Math.abs(z) > 1000){
+      reset();
+    }
+  }
+
+  function project(px, py, pz, a){
+    const cosA = Math.cos(a), sinA = Math.sin(a);
+    const rx = px*cosA - pz*sinA;
+    const rz = px*sinA + pz*cosA;
+    const scale = 7;
+    const perspective = 200 / (200 + rz*scale*0.02 + 60);
+    return [
+      W/2 + rx*scale*perspective,
+      H/2 + 60 - py*scale*perspective + rz*0.3
+    ];
+  }
+
+  function draw(){
+    ctx.fillStyle = 'rgba(5,5,16,0.15)';
+    ctx.fillRect(0,0,W,H);
+
+    for (let i = 1; i < points.length; i++){
+      const [x0,y0,z0] = points[i-1];
+      const [x1,y1,z1] = points[i];
+      const [px0,py0] = project(x0,y0,z0,angle);
+      const [px1,py1] = project(x1,y1,z1,angle);
+      const t = i / points.length;
+      const hue = 245 - t*40;
+      ctx.strokeStyle = `hsla(${hue}, 70%, ${55+t*20}%, ${0.15+t*0.55})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(px0,py0);
+      ctx.lineTo(px1,py1);
+      ctx.stroke();
+    }
+  }
+
+  function loop(){
+    for (let i = 0; i < 6; i++){
+      rk4(0.005);
+      points.push([x,y,z]);
+    }
+    if (points.length > 4000) points.splice(0, points.length - 4000);
+    angle += 0.0025;
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function refreshLabels(){
+    sV.textContent = parseFloat(sigmaSlider.value).toFixed(1);
+    rV.textContent = parseFloat(rhoSlider.value).toFixed(1);
+    bV.textContent = parseFloat(betaSlider.value).toFixed(2);
+  }
+  [sigmaSlider, rhoSlider, betaSlider].forEach(s => s.addEventListener('input', refreshLabels));
+  document.getElementById('resetBtn').addEventListener('click', reset);
+
+  reset();
+  refreshLabels();
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0,0,W,H);
+  loop();
+})();
+</script>
+</body>
+</html>

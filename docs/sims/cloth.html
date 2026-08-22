@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Verlet Cloth</title>
+<style>
+  :root { --accent: #5b5bd6; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #22223a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 60px;
+  }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  p.desc { margin: 0 0 24px; color: #6b6b80; font-size: 14px; }
+  .card {
+    border-radius: 18px;
+    border: 1px solid #e6e6f0;
+    background: linear-gradient(180deg, #fbfbff 0%, #f4f4fb 100%);
+    box-shadow: 0 8px 30px rgba(91,91,214,0.08);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  canvas {
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    display: block;
+    cursor: grab;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 16px;
+    background: #ffffff;
+    border: 1px solid #eeeef6;
+    border-radius: 12px;
+    width: 100%;
+  }
+  button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #d8d8ea;
+    background: #ffffff;
+    color: #22223a;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.active { background: #e3e3f7; border-color: var(--accent); }
+  .label { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: #6b6b80; }
+</style>
+<style id="__embed">
+  body { padding: 0 !important; min-height: 0 !important; background: transparent !important; align-items: stretch !important; }
+  body > h1, body > p.desc, body > h2 { display: none !important; }
+  .card { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+</style>
+</head>
+<body>
+  <h1>Verlet Cloth</h1>
+  <p class="desc">A pinned grid held together by constraint relaxation. Drag a point to pull the cloth.</p>
+  <div class="card">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div class="controls">
+      <button class="primary" id="resetBtn">Reset</button>
+      <button id="tearBtn">Tear mode: off</button>
+      <span class="label">drag any node, hold shift-free drag to tug the fabric</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const cols = 22, rows = 16;
+  const spacing = 22;
+  const startX = W/2 - (cols-1)*spacing/2;
+  const startY = 40;
+  const gravity = 0.35;
+  const constraintIterations = 4;
+  const tearThreshold = 90;
+
+  let points = [];
+  let constraints = [];
+  let tearMode = false;
+  let dragPoint = null;
+  let mouse = { x: 0, y: 0, down: false };
+
+  function makePoint(x, y, pinned){
+    return { x, y, oldX: x, oldY: y, pinned };
+  }
+
+  function buildCloth(){
+    points = [];
+    constraints = [];
+    for (let r = 0; r < rows; r++){
+      for (let c = 0; c < cols; c++){
+        const px = startX + c*spacing;
+        const py = startY + r*spacing;
+        const pinned = (r === 0) && (c % 3 === 0);
+        points.push(makePoint(px, py, pinned));
+      }
+    }
+    const idx = (r,c) => r*cols + c;
+    for (let r = 0; r < rows; r++){
+      for (let c = 0; c < cols; c++){
+        if (c < cols-1) constraints.push({ a: idx(r,c), b: idx(r,c+1), len: spacing, active: true });
+        if (r < rows-1) constraints.push({ a: idx(r,c), b: idx(r+1,c), len: spacing, active: true });
+      }
+    }
+  }
+
+  function updatePoints(){
+    for (const p of points){
+      if (p.pinned) continue;
+      const vx = (p.x - p.oldX) * 0.99;
+      const vy = (p.y - p.oldY) * 0.99;
+      const nx = p.x + vx;
+      const ny = p.y + vy + gravity;
+      p.oldX = p.x; p.oldY = p.y;
+      p.x = nx; p.y = ny;
+
+      if (p.x < 2) p.x = 2;
+      if (p.x > W-2) p.x = W-2;
+      if (p.y > H-2) p.y = H-2;
+    }
+  }
+
+  function satisfyConstraints(){
+    for (const con of constraints){
+      if (!con.active) continue;
+      const a = points[con.a], b = points[con.b];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy) || 0.0001;
+      const diff = (dist - con.len) / dist;
+
+      if (tearMode && dist > tearThreshold){
+        con.active = false;
+        continue;
+      }
+
+      const offX = dx * 0.5 * diff;
+      const offY = dy * 0.5 * diff;
+      if (!a.pinned){ a.x += offX; a.y += offY; }
+      if (!b.pinned){ b.x -= offX; b.y -= offY; }
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle = '#5b5bd6';
+    ctx.lineWidth = 1;
+    for (const con of constraints){
+      if (!con.active) continue;
+      const a = points[con.a], b = points[con.b];
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#22223a';
+    for (const p of points){
+      if (p.pinned){
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function loop(){
+    updatePoints();
+    for (let i = 0; i < constraintIterations; i++) satisfyConstraints();
+
+    if (dragPoint !== null){
+      const p = points[dragPoint];
+      p.x = mouse.x; p.y = mouse.y;
+      p.oldX = mouse.x; p.oldY = mouse.y;
+    }
+
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function mousePos(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function nearestPoint(x, y){
+    let best = -1, bestD = 22;
+    for (let i = 0; i < points.length; i++){
+      const p = points[i];
+      const d = Math.hypot(p.x-x, p.y-y);
+      if (d < bestD){ bestD = d; best = i; }
+    }
+    return best;
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const m = mousePos(e);
+    mouse.x = m.x; mouse.y = m.y; mouse.down = true;
+    const idx = nearestPoint(m.x, m.y);
+    if (idx >= 0 && !points[idx].pinned) dragPoint = idx;
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    const m = mousePos(e);
+    mouse.x = m.x; mouse.y = m.y;
+  });
+  window.addEventListener('mouseup', () => { dragPoint = null; mouse.down = false; });
+
+  document.getElementById('resetBtn').addEventListener('click', buildCloth);
+  document.getElementById('tearBtn').addEventListener('click', (e) => {
+    tearMode = !tearMode;
+    e.target.textContent = 'Tear mode: ' + (tearMode ? 'on' : 'off');
+    e.target.classList.toggle('active', tearMode);
+  });
+
+  buildCloth();
+  loop();
+})();
+</script>
+</body>
+</html>
