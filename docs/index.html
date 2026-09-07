@@ -7,7 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="logo.svg">
 <meta name="description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
 <meta name="author" content="Pavan Nallamothu (pavanchow)">
-<meta name="keywords" content="software rasterizer, rust, 3d, cpu rendering, z-buffer, barycentric, graphics, Pavan Nallamothu, pavanchow">
+<meta name="keywords" content="software rasterizer, rust, 3d rendering, cpu rendering, z-buffer, barycentric coordinates, rasterization, perspective projection, flat shading, PPM, tinyrenderer, from scratch graphics, Pavan Nallamothu, pavanchow">
 <link rel="canonical" href="https://pavanchow.github.io/prism/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Prism: a software rasterizer in Rust">
@@ -16,7 +16,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Prism: a software rasterizer in Rust">
 <meta name="twitter:description" content="Real 3D triangles drawn on the CPU with a framebuffer, a z-buffer, and barycentric math. Drag to orbit a live cube.">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Prism","applicationCategory":"DeveloperApplication","operatingSystem":"Cross-platform","author":{"@type":"Person","name":"Pavan Nallamothu"},"description":"A software rasterizer in Rust that draws real 3D triangles on the CPU with a framebuffer, a z-buffer, and barycentric math, no GPU and no graphics crates.","url":"https://pavanchow.github.io/prism/","programmingLanguage":"Rust","codeRepository":"https://github.com/pavanchow/prism","license":"https://opensource.org/licenses/MIT"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Prism","applicationCategory":"DeveloperApplication","softwareVersion":"0.1.0","operatingSystem":"Cross-platform","author":{"@type":"Person","name":"Pavan Nallamothu"},"description":"A software rasterizer in Rust that draws real 3D triangles on the CPU with a framebuffer, a z-buffer, and barycentric math, no GPU and no graphics crates.","url":"https://pavanchow.github.io/prism/","programmingLanguage":"Rust","codeRepository":"https://github.com/pavanchow/prism","license":"https://opensource.org/licenses/MIT"}</script>
 <script src="./support.js"></script>
 <link rel="author" href="https://github.com/pavanchow">
 <script type="application/ld+json">
@@ -43,7 +43,9 @@
     <nav style="display: flex; gap: 32px; font-size: 14px; color: #6b6b72;">
       <a href="#how" style="color: #6b6b72;">How it works</a>
       <a href="#demo" style="color: #6b6b72;">Demo</a>
+      <a href="#pipeline" style="color: #6b6b72;">Pipeline</a>
       <a href="https://github.com/pavanchow/prism" style="color: #6b6b72;">Source</a>
+      <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #a2a2a8;">v0.1.0</span>
     </nav>
     </div>
   </header>
@@ -150,6 +152,78 @@ fb.set_with_depth(x, y, z, color);</pre>
         <div style="background: #fdfdfc; padding: 24px 26px; display: flex; justify-content: space-between; align-items: baseline; gap: 20px;">
           <span style="font-size: 16px;">Dependencies</span>
           <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #8a8a90;">clap</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="cli" style="border-top: 1px solid #ececE6; padding: 130px 40px;">
+    <div style="max-width: 1120px; margin: 0 auto;">
+      <h2 style="font-size: 56px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 600; margin: 0; max-width: 620px;">The same pipeline,<br />from the command line.</h2>
+      <p style="font-size: 19px; line-height: 1.6; color: #55555c; margin: 24px 0 0; max-width: 560px; text-wrap: pretty;">One subcommand renders the built-in demo scene, a rotated, lit cube, and writes it as a binary PPM. No image codec, no runtime dependencies beyond clap. The output is just a header and raw bytes, so its size is checkable by hand.</p>
+      <pre style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; line-height: 1.75; color: #f1f1ee; background: #17171a; border-radius: 16px; padding: 26px 28px; margin: 40px 0 0; overflow-x: auto;"><span style="color: #8a8a90;">$</span> cargo run -- render -o out.ppm
+wrote out.ppm (640x480)
+
+<span style="color: #8a8a90;">$</span> cargo run -- render -o wide.ppm --width 800 --height 600
+wrote wide.ppm (800x600)
+
+<span style="color: #8a8a90;">$</span> ls -l out.ppm
+-rw-r--r--  <span style="color: #b7b7ff;">921615</span>  out.ppm   <span style="color: #8a8a90;"># 640 * 480 * 3 + 15-byte header</span>
+
+<span style="color: #8a8a90;">$</span> head -c 15 out.ppm | xxd
+50 36 0a 36 34 30 20 34 38 30 0a 32 35 35 0a   <span style="color: #b7b7ff;">P6.640 480.255.</span></pre>
+    </div>
+  </section>
+
+  <section id="pipeline" style="border-top: 1px solid #ececE6; padding: 130px 40px;">
+    <div style="max-width: 1120px; margin: 0 auto;">
+      <p style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.55 0.13 265); margin: 0;">Every stage, by hand</p>
+      <h2 style="font-size: 56px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 600; margin: 18px 0 0; max-width: 640px;">The six stages a vertex passes through.</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 64px;">
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">Vertex transform <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">src/vec.rs</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">Model to world to camera to clip space through a chain of hand-written 4x4 matrices: rotation, look_at, and a right-handed perspective.</p>
+        </div>
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">Projection <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">src/scene.rs</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">Divide by w to land in normalized device coordinates in [-1, 1], then map linearly to pixel coordinates and the z-buffer depth range.</p>
+        </div>
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">Barycentric fill <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">src/raster.rs</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">Walk each triangle's bounding box. Three edge functions per pixel decide inside from outside, and their signed ratios are the barycentric weights.</p>
+        </div>
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">Z-buffer <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">src/framebuffer.rs</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">One depth per pixel. set_with_depth commits a color only when the incoming depth is nearer, so overlaps resolve regardless of draw order.</p>
+        </div>
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">Flat shading <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">src/scene.rs</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">A dot product between the world-space face normal and a fixed light direction sets each triangle's brightness. One tone per face.</p>
+        </div>
+        <div style="background: #f7f7f4; border: 1px solid #ececE6; border-radius: 16px; padding: 26px 28px;">
+          <h3 style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px;">PPM output <span style="font-size: 11px; color: #8a8a90; font-weight: 400;">P6 binary</span></h3>
+          <p style="font-size: 15px; line-height: 1.6; color: #55555c; margin: 0;">A text header then width times height times three raw RGB bytes, row-major from the top. No compression, no metadata, checkable by byte length alone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="compare" style="border-top: 1px solid #ececE6; padding: 130px 40px;">
+    <div style="max-width: 1120px; margin: 0 auto;">
+      <h2 style="font-size: 56px; line-height: 1.04; letter-spacing: -0.035em; font-weight: 600; margin: 0; max-width: 620px;">Where Prism sits.</h2>
+      <p style="font-size: 19px; line-height: 1.6; color: #55555c; margin: 24px 0 0; max-width: 560px; text-wrap: pretty;">Prism is a teaching-grade software rasterizer, not a renderer to ship a game on. It trades speed for a pipeline you can read.</p>
+      <div style="max-width: 900px; margin: 56px 0 0;">
+        <div style="display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 16px 48px; padding: 28px 0; border-top: 1px solid #ececE6;">
+          <b style="font-size: 18px;">tinyrenderer, scratchapixel</b>
+          <p style="font-size: 16px; line-height: 1.6; color: #55555c; margin: 0;">The classic path for learning software rendering, usually in C++. Prism is in that spirit: a full pipeline read end to end, written from scratch in Rust with the transforms and z-buffer by hand.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 16px 48px; padding: 28px 0; border-top: 1px solid #ececE6;">
+          <b style="font-size: 18px;">A GPU pipeline (wgpu, OpenGL, Vulkan)</b>
+          <p style="font-size: 16px; line-height: 1.6; color: #55555c; margin: 0;">Runs these same steps in hardware: fast, parallel, and opaque. Prism does vertex transform, rasterization, depth test, and shading in plain CPU code so each step is visible instead of hidden behind a driver.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 16px 48px; padding: 28px 0; border-top: 1px solid #ececE6;">
+          <b style="font-size: 18px;">Prism</b>
+          <p style="font-size: 16px; line-height: 1.6; color: #55555c; margin: 0;">The readable middle. Real perspective transforms, per-pixel barycentric fill, a per-pixel z-buffer, flat directional shading, and a PPM writer, with clap as the only dependency. The same engine runs live in the browser demo above.</p>
         </div>
       </div>
     </div>
