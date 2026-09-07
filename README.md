@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" alt="Prism logo" width="96">
+
 **A software rasterizer in Rust.**
 
 Prism draws real 3D triangles on the CPU. No GPU, no graphics crates. Just a framebuffer, a z-buffer, and barycentric math turning vertices into pixels.

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prism: a software rasterizer in Rust</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
 <meta name="description" content="Prism is a software rasterizer in Rust that draws real 3D triangles on the CPU with no GPU and no graphics crates.">
 <meta name="author" content="Pavan Nallamothu (pavanchow)">
 <meta name="keywords" content="software rasterizer, rust, 3d, cpu rendering, z-buffer, barycentric, graphics, Pavan Nallamothu, pavanchow">
@@ -46,6 +47,7 @@
   </header>
 
   <section style="max-width: 1120px; margin: 0 auto; padding: 130px 40px 120px; text-align: center;">
+    <img src="logo.svg" alt="Prism logo" width="72" height="72" style="display: block; margin: 0 auto 26px;">
     <p style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.55 0.13 265); margin: 0 0 32px;">Software rasterizer · Rust</p>
     <h1 style="font-size: 92px; line-height: 0.98; letter-spacing: -0.045em; font-weight: 600; margin: 0 auto; max-width: 900px; text-wrap: balance;">Real triangles.<br />Drawn on the CPU.</h1>
     <p style="font-size: 21px; line-height: 1.5; color: #55555c; max-width: 560px; margin: 34px auto 0; text-wrap: pretty;">Prism is a 3D rendering pipeline written from scratch in Rust. No GPU, no graphics crates. Just a framebuffer, a z-buffer, and barycentric math turning vertices into pixels.</p>
@@ -94,6 +96,10 @@
       </div>
       </sc-if>
     </div>
+    <details style="margin-top: 26px; border-top: 1px solid #ececE6; padding-top: 18px;">
+      <summary style="cursor: pointer; font-size: 15px; font-weight: 600; color: #17171a;">How to use this playground</summary>
+      <p style="font-size: 15px; line-height: 1.6; color: #55555c; max-width: 640px; margin: 14px 0 0;">Use the <strong>Simulation</strong> dropdown to switch scenes, from the CPU-rasterized rotating cube to boids, Game of Life, and more. On the cube, drag to orbit the camera, toggle <strong>Wireframe</strong> to see the triangles, use <strong>Play/Pause</strong> to freeze it, and the <strong>Speed</strong> slider to change the rotation rate. Everything is drawn per pixel in your browser, the same pipeline as the Rust renderer.</p>
+    </details>
   </section>
 
   <section id="how" style="border-top: 1px solid #ececE6; padding: 130px 40px;">
