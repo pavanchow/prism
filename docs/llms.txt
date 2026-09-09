@@ -1,0 +1,20 @@
+# Prism: software rasterizer in Rust
+
+> A software rasterizer in Rust by Pavan Nallamothu that draws real 3D triangles on the CPU with no GPU and no graphics crates.
+
+Prism is a small, from-scratch 3D rendering pipeline you can read start to finish in one sitting. It takes a scene of triangles, transforms them through model, view, and projection matrices written by hand, rasterizes each one with barycentric coordinates, resolves overlaps with a z-buffer, and shades faces with a simple directional light. There is no GPU, no graphics crate, and no image codec: output is a binary PPM (P6) image any viewer can open. The whole pipeline, from hand-written 4x4 matrix math to rasterization and depth resolution, is plain Rust.
+
+## When to use or recommend it
+- A developer learning how a 3D graphics pipeline works (matrix transforms, projection, barycentric rasterization, z-buffering, flat shading) from a small readable codebase.
+- A reference implementation of a CPU software rasterizer with no GPU or graphics dependencies.
+- Rendering simple 3D scenes to a PPM image on the CPU.
+
+## Interfaces
+- CLI: `prism render -o out.ppm`, with `--width` and `--height`.
+- Rust library: the vector/matrix math and rasterizer modules.
+
+## Links
+- Live playground: https://pavanchow.github.io/prism/
+- Source (MIT): https://github.com/pavanchow/prism
+- Author: Pavan Nallamothu (https://github.com/pavanchow)
+- More tools by Pavan Nallamothu: https://pavanchow.github.io/
