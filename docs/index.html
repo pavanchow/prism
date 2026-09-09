@@ -30,6 +30,20 @@
   body { margin: 0; background: #fdfdfc; -webkit-font-smoothing: antialiased; }
   a { color: oklch(0.55 0.13 265); text-decoration: none; }
   a:hover { color: oklch(0.45 0.13 265); }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0a0a0b !important; }
+    x-dc > div { background: #0a0a0b !important; color: #f5f5f7 !important; }
+    header { background: rgba(18,18,20,0.72) !important; border-bottom-color: rgba(255,255,255,0.08) !important; }
+    header span, nav a, nav span { color: #d4d4dc !important; }
+    section { border-top-color: #2a2a2e !important; }
+    h1, h2, h3 { color: #f5f5f7 !important; }
+    p, span, label, summary, b, li, pre { color: #c2c2ca !important; }
+    a { color: #8ab4ff !important; }
+    [style*="rgb(247, 247, 244)"] { background: #161618 !important; border-color: #2a2a2e !important; }
+    [style*="rgb(253, 253, 252)"] { background: #161618 !important; }
+    [style*="rgb(236, 236, 230)"], [style*="rgb(222, 222, 216)"] { border-color: #2a2a2e !important; }
+    select, input { background: #1c1c1e !important; color: #f5f5f7 !important; border-color: #38383a !important; }
+  }
 </style>
 </helmet>
 <div style="font-family: Helvetica Neue, Helvetica, sans-serif; color: #17171a; background: #fdfdfc;">
