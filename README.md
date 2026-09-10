@@ -6,6 +6,8 @@ Prism is a software rasterizer written in Rust that draws real 3D triangles on t
 
 **[Live demo](https://pavanchow.github.io/prism/)** · MIT licensed · written in Rust
 
+Built from scratch by [Pavan Nallamothu](https://pavanchow.github.io/) ([LinkedIn](https://www.linkedin.com/in/pavanchow/), [GitHub](https://github.com/pavanchow)).
+
 ## What it is
 
 A small, from-scratch 3D rendering pipeline you can read start to finish in one sitting. It takes a scene of triangles, transforms them through a model, view, and projection matrix, rasterizes each one with barycentric coordinates, resolves overlaps with a z-buffer, and shades faces with a simple directional light. The output is a binary PPM image, so there is no image codec to pull in either.
